@@ -1,3 +1,9 @@
 .mainContent {
-  background-color: #EEE;
+  background-color: #f0b669;
+  display: flex;
+  justify-items: center;
+  margin: 4rem 0.5rem;
+  border-radius: 4rem;
+  padding-bottom: 2rem;
+  max-width: 42rem;
 }

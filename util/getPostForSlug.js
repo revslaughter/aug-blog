@@ -22,3 +22,16 @@ export function getAllPosts() {
     .map((name) => name.replace(/\.md$/, "")) //strip file extension
     .map((slug) => getPostForSlug(slug));
 }
+
+/**
+ *
+ * @param {number} limit The number of recent posts to return
+ * @returns Array of post data, from most to least recent
+ */
+export function getRecentPosts(limit) {
+  return getAllPosts()
+    .sort((onePost, anotherPost) =>
+      new Date(onePost.pubdate) > new Date(anotherPost.pubdate) ? -1 : 1
+    )
+    .slice(0, limit);
+}

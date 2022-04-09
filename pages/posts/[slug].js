@@ -16,7 +16,7 @@ export default function Post(props) {
     <Layout>
       <article>
         <header>
-          <h1>{props.title}</h1>
+          <h1 className="article-title">{props.title}</h1>
           <div className="byline">
             <address className="author">By {props.author}</address>
             <time pubdate dateTime={props.pubdate}>

@@ -1,9 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
 html,
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  color: #483527;
+  background-color: #efa125;
+  font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
 }
 
 a {
@@ -15,10 +19,55 @@ a {
   box-sizing: border-box;
 }
 
+code {
+  font-family: "VT323", monospace;
+}
+
 article > header {
-  padding: 3em 0 0 3em;
+  margin: auto;
+  max-width: max-content;
+}
+
+.article-title {
+  color: #36460c;
+  font-size: 48px;
+  margin-bottom: 0px;
+}
+
+.byline {
+  font-size: medium;
 }
 
 .article-content {
-  margin: 2em 4em;
+  text-align: justify;
+  font-size: 20px;
+  line-height: 110%;
+  margin: 2em auto;
+  padding: 0 2rem;
+  max-width: 38em;
+}
+
+ul {
+  margin: 0;
+  list-style-type: none;
+}
+ul > li {
+  text-indent: -0.5rem;
+}
+ul > li:before {
+  content: "\2014";
+}
+
+.headerNav {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));;
+  justify-content: center;
+  background-color: #ff7033;
+  color:#221008;
+  width: 100%;
+}
+
+.headerNavLink {
+  padding: 0.25rem 0.5rem;
 }
