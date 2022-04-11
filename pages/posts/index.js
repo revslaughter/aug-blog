@@ -4,7 +4,9 @@ import { getRecentPosts } from "../../util/getPostForSlug";
 export default function BlogHome(props) {
   return (
     <Layout>
-      <RecentPosts posts={props.posts} />
+      <div style={{ padding: "4rem" }}>
+        <RecentPosts posts={props.posts} />
+      </div>
     </Layout>
   );
 }
