@@ -46,3 +46,5 @@ a short delay.
 If you have any questions get me on the Discord `@revslaughter` or email me at jmslaughter85@outlook.com, or via GitHub.
 
 Issue with the site, idea, or new feature? [You can report an issue on the site at this link.](https://github.com/revslaughter/aug-blog/issues)
+
+Don't forget to checkout Takeover Productions!!
