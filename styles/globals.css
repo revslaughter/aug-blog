@@ -6,7 +6,7 @@ body {
   padding: 0;
   margin: 0;
   color: #483527;
-  background-color: #efa125;
+  background-color: #789130;
   font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
 }
 
@@ -59,13 +59,16 @@ ul > li:before {
 }
 
 .headerNav {
+  position: fixed;
+  top: 0;
   display: grid;
   grid-auto-flow: column;
   grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));;
   justify-content: center;
-  background-color: #ff7033;
+  background-color: #c1cf9c;
   color:#221008;
   width: 100%;
+  z-index: 9999;
 }
 
 .headerNavLink {
