@@ -10,7 +10,7 @@ export default function Post(props) {
     return <ErrorPage statusCode={404} />;
   }
 
-  let publishDate = new Date(props.pubdate);
+  let publishDate = new Date(props.pubdate.split("T")[0].split("-"));
 
   return (
     <Layout>
