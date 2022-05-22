@@ -10,8 +10,6 @@ export default function Post(props) {
     return <ErrorPage statusCode={404} />;
   }
 
-  let publishDate = new Date(props.pubdate.split("T")[0].split("-"));
-
   return (
     <Layout>
       <article>
@@ -20,7 +18,7 @@ export default function Post(props) {
           <div className="byline">
             <address className="author">By {props.author}</address>
             <time pubdate dateTime={props.pubdate}>
-              {publishDate.toDateString()}
+              {props.publishDate}
             </time>
           </div>
         </header>
@@ -46,10 +44,13 @@ function cantFindPage(router, post) {
 export async function getStaticProps({ params }) {
   const post = getPostForSlug(params.slug);
   const renderedContent = await processMarkdown(post.content);
+  let publishDate = new Date(post.pubdate.split("T")[0].split("-"));
+  publishDate = publishDate.toDateString();
   return {
     props: {
       ...post,
       renderedContent,
+      publishDate,
     },
   };
 }
