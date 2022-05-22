@@ -23,6 +23,11 @@ code {
   font-family: "VT323", monospace;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1;
+  text-align: left;
+}
+
 article > header {
   margin: auto;
   max-width: max-content;
@@ -32,10 +37,12 @@ article > header {
   color: #36460c;
   font-size: 48px;
   margin-bottom: 0px;
+  padding: 8px;
 }
 
 .byline {
   font-size: medium;
+  padding: 12px;
 }
 
 .article-content {
@@ -63,10 +70,10 @@ ul > li:before {
   top: 0;
   display: grid;
   grid-auto-flow: column;
-  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));;
+  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
   justify-content: center;
   background-color: #c1cf9c;
-  color:#221008;
+  color: #221008;
   width: 100%;
   z-index: 9999;
 }

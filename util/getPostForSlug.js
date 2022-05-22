@@ -5,8 +5,19 @@ import matter from "gray-matter";
 const POSTS_DIR = join(process.cwd(), "_posts");
 
 /**
- *
+ * Datatype for post data and metadata
+ * @typedef {{
+ *   title: string,
+ *   author: string,
+ *   pubdate: string,
+ *   slug: string,
+ *   content: string}} Post
+ */
+
+/**
+ * Given the url for the post, get the post info
  * @param {string} slug The filename of the post
+ * @returns {Post} post metadata
  */
 export function getPostForSlug(slug) {
   const filePath = join(POSTS_DIR, `${slug}.md`);
@@ -15,6 +26,7 @@ export function getPostForSlug(slug) {
   const { pubdate, title, author } = data;
   return { title, author, pubdate: pubdate.toJSON(), slug, content };
 }
+
 
 export function getAllPosts() {
   const postFiles = fs.readdirSync(POSTS_DIR);
@@ -34,4 +46,13 @@ export function getRecentPosts(limit) {
       new Date(onePost.pubdate) > new Date(anotherPost.pubdate) ? -1 : 1
     )
     .slice(0, limit);
+}
+
+/**
+ *
+ * @param {Post} post
+ * @returns
+ */
+export function getNextPost(post) {
+  return getAllPosts();
 }
