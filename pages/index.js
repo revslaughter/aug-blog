@@ -2,6 +2,7 @@ import Image from "next/image";
 import Layout from "../components/layout";
 import styles from "../styles/Home.module.css";
 
+/*
 const LINK_CONTAINER = {
   display: "flex",
   flexDirection: "row",
@@ -13,10 +14,11 @@ const LINK_CONTAINER = {
 };
 
 const LINK_ITEM = {
-  margin: "0px 0.5rem",
+  margin: "0.5rem 0.5rem",
   display: "flex",
   justifyContent: "center",
 };
+*/
 
 export default function Home() {
   return (
