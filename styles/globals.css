@@ -6,7 +6,7 @@ body {
   padding: 0;
   margin: 0;
   color: #483527;
-  background-color: #789130;
+  background-color: #dcdfd1;
   font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
 }
 
@@ -23,7 +23,12 @@ code {
   font-family: "VT323", monospace;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   line-height: 1;
   text-align: left;
 }
@@ -55,15 +60,19 @@ article > header {
 }
 
 ul {
-  margin: 0;
+  /*   margin: 0; */
   list-style-type: none;
 }
 ul > li {
-  text-indent: -0.5rem;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
 }
+/*
 ul > li:before {
   content: "\2014";
 }
+*/
 
 .headerNav {
   position: fixed;

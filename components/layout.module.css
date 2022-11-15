@@ -1,8 +1,5 @@
 .mainContent {
-  background-color: #aabd75;
-  display: flex;
-  margin: 4rem 0.5rem;
-  border-radius: 4rem;
-  padding-bottom: 2rem;
-  max-width: 42rem;
+  background-color: #ebeee3;
+  margin: 2rem 0.5rem;
+  border-radius: 1rem;
 }

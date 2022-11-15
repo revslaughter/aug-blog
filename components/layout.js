@@ -1,4 +1,3 @@
-import Header from "./header";
 import styles from "./layout.module.css";
 export default function Layout({ children }) {
   return (
@@ -11,6 +10,7 @@ export default function Layout({ children }) {
         flexDirection: "column",
       }}
     >
+      {/*
       <Header
         links={[
           { title: "Home", href: "/" },
@@ -18,6 +18,7 @@ export default function Layout({ children }) {
           { title: "Blog", href: "/posts" },
         ]}
       />
+      */}
       <div className={styles.mainContent}>{children}</div>
     </div>
   );
