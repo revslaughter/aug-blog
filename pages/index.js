@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { SocialIcon } from "react-social-icons";
 import Layout from "../components/layout";
 import styles from "../styles/Home.module.css";
 
