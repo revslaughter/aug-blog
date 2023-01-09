@@ -39,7 +39,24 @@ export default function Home() {
               margin: "auto",
             }}
           />
-          <ul style={{ margin:"auto" }}>
+          <ul style={{ margin: "auto" }}>
+            <li style={{ paddingBottom: "2rem" }}>
+              <a
+                href="https://antiochurbang.square.site"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Antioch Urban Growers Storefront
+              </a>
+            </li>
+            <li
+              style={{
+                fontWeight: "bold",
+                paddingTop: 0,
+              }}
+            >
+              Follow us on Facebook for events, videos, and education!
+            </li>
             <li>
               <a
                 href="https://www.facebook.com/antiochurbangrowers"
@@ -53,9 +70,6 @@ export default function Home() {
                   alt="Our Facebook Page"
                 />
               </a>
-            </li>
-            <li style={{ fontWeight: "bold", paddingTop: 0, paddingBottom: "2rem" }}>
-              Follow us on Facebook for events, videos, and education!
             </li>
             <li>
               <iframe
