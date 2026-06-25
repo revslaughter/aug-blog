@@ -17,7 +17,7 @@ export default function Post(props) {
           <h1 className="article-title">{props.title}</h1>
           <div className="byline">
             <address className="author">By {props.author}</address>
-            <time pubdate dateTime={props.pubdate}>
+            <time dateTime={props.pubdate}>
               {props.publishDate}
             </time>
           </div>
