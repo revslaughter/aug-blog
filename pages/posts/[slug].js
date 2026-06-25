@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
 import ErrorPage from "next/error";
 import Layout from "../../components/layout";
+import Seo from "../../components/seo";
 import { getAllPosts, getPostForSlug } from "../../util/getPostForSlug";
 import processMarkdown from "../../util/processMarkdown";
 
@@ -12,6 +13,12 @@ export default function Post(props) {
 
   return (
     <Layout>
+      <Seo
+        title={props.title}
+        description={props.excerpt}
+        path={`/posts/${props.slug}`}
+        type="article"
+      />
       <article>
         <header>
           <h1 className="article-title">{props.title}</h1>
@@ -51,8 +58,23 @@ export async function getStaticProps({ params }) {
       ...post,
       renderedContent,
       publishDate,
+      excerpt: makeExcerpt(post.content),
     },
   };
+}
+
+/**
+ * Build a plain-text meta description from markdown body (~155 chars).
+ * @param {string} markdown
+ * @returns {string}
+ */
+function makeExcerpt(markdown) {
+  return markdown
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) -> text
+    .replace(/[#>*_`~]/g, "") // strip common markdown syntax
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 155);
 }
 
 export async function getStaticPaths() {

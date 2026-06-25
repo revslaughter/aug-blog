@@ -1,8 +1,14 @@
 import Layout from "../components/layout";
+import Seo from "../components/seo";
 
 export default function About() {
   return (
     <Layout>
+      <Seo
+        title="About"
+        description="Antioch Urban Growers is taking over the world one back yard at a time. Learn about our mission and commitments to our Kansas City community."
+        path="/about"
+      />
       <article>
         <header>
           <h1>About</h1>

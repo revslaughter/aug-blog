@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Layout from "../components/layout";
+import Seo from "../components/seo";
+import StructuredData from "../components/structuredData";
 import styles from "../styles/Home.module.css";
 
 /*
@@ -23,6 +25,8 @@ const LINK_ITEM = {
 export default function Home() {
 	return (
 		<Layout>
+			<Seo path="/" />
+			<StructuredData />
 			<main className={styles.main}>
 				<Image
 					src="/AUG-logo-transparent-background-1.png"
