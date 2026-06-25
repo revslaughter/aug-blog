@@ -6,25 +6,24 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export": "next export",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "jest",
     "test:ci": "jest --ci --passWithNoTests"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
-    "next": "12.1.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
-    "remark": "^14.0.2",
-    "remark-html": "^15.0.1"
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "remark": "^15.0.1",
+    "remark-html": "^16.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^12.1.5",
+    "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "eslint": "8.11.0",
-    "eslint-config-next": "12.1.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.9",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1"
   }
