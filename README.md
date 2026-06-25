@@ -1,34 +1,96 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Antioch Urban Growers
 
-## Getting Started
+Marketing and blog site for [Antioch Urban Growers](https://www.antiochurbangrowers.com) —
+a Kansas City urban farm. Built with Next.js and deployed as a fully static site
+to Netlify.
 
-First, run the development server:
+## Tech stack
+
+- **Next.js 16** (Pages Router) with **React 19**
+- **Static export** (`output: "export"`) — the build emits plain HTML/CSS/JS to
+  `out/`; there is no server runtime
+- **Markdown blog** — posts live in `_posts/`, parsed with `gray-matter` and
+  rendered with `remark`
+- **ESLint 9** (flat config) + **Jest** / React Testing Library
+- **Node 22** (pinned via `.nvmrc`)
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
+nvm use            # Node 22, per .nvmrc
+npm ci             # install exact dependency versions
+npm run dev        # dev server at http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+| Command          | What it does                                                        |
+| ---------------- | ------------------------------------------------------------------- |
+| `npm run dev`    | Start the local dev server                                          |
+| `npm run build`  | Generate the sitemap, then build the static export into `out/`      |
+| `npm run lint`   | Run ESLint                                                          |
+| `npm test`       | Run the Jest test suite                                             |
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+`npm run build` runs `scripts/generate-sitemap.mjs` first (via `prebuild`) to
+regenerate `public/sitemap.xml` from the static routes and published posts.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+## Project structure
 
-## Learn More
+```
+pages/            Routes (Pages Router)
+  index.js          Home
+  about.js          About
+  contact.js        Contact
+  posts/            Blog index + dynamic post pages ([slug].js)
+components/         Layout, header/footer, RecentPosts, Seo, StructuredData
+util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
+_posts/            Blog posts (Markdown + frontmatter); template.md is the starter
+public/            Static assets (logo, favicon, robots.txt)
+scripts/           Build-time sitemap generator
+styles/            CSS modules + globals
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Writing a blog post
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy `_posts/template.md`, rename it to your post's slug (e.g.
+`spring-plant-sale.md`), and fill in the frontmatter:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```markdown
+---
+title: Your Title
+author: Your Name
+pubdate: 2026-06-25
+---
 
-## Deploy on Vercel
+Post body in Markdown…
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The post is picked up automatically — it appears on the blog, gets its own page
+at `/posts/<slug>`, and is added to the sitemap on the next build. Files named
+`test-*` are gitignored scratch drafts.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## SEO
+
+Site-wide SEO is centralized:
+
+- `util/siteMeta.js` — single source of truth for URL, name, address, and social
+  links. **Update business details here.**
+- `components/seo.js` — per-page `<title>`, description, canonical, Open Graph,
+  and Twitter Card tags.
+- `components/structuredData.js` — `LocalBusiness` JSON-LD on the homepage.
+- `public/robots.txt` and the generated `sitemap.xml`.
+
+## Branching & deployment
+
+```
+feature/*  →  alpha  →  beta  →  main
+```
+
+- **`feature/*`** — individual pieces of work
+- **`alpha`** — integration branch where features are merged and conflicts resolved
+- **`beta`** — client preview (Netlify deploy preview)
+- **`main`** — production (deploys to the live site)
+
+CI (GitHub Actions) runs lint, build, and tests on every push; a non-blocking
+`npm audit` reports advisories. Netlify builds with `npm ci && npm run build` and
+publishes the `out/` directory.
