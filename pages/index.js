@@ -56,8 +56,8 @@ export default function Home() {
 					style={{
 						fontWeight: "bold",
 						paddingTop: 0,
-            textAlign: "center",
-            lineHeight: 1.5
+						textAlign: "center",
+						lineHeight: 1.5,
 					}}
 				>
 					Follow us on Facebook for events, videos, and education!
@@ -77,7 +77,7 @@ export default function Home() {
 					</a>
 				</div>
 				<div>
-					<a href="tel:+18166884953">(816) 699-4953</a>
+					<a href="tel:+18166994953">(816) 699-4953</a>
 				</div>
 				{/*
           <div style={LINK_CONTAINER}>

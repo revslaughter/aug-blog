@@ -10,20 +10,20 @@ export const DEFAULT_DESCRIPTION =
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/AUG-logo-transparent-background-1.png`;
 
 export const ORGANIZATION = {
-  name: SITE_NAME,
-  telephone: "+18166884953",
-  email: null,
-  address: {
-    street: "2727 NE 44th St",
-    city: "Kansas City",
-    region: "MO",
-    postalCode: "64117",
-    country: "US",
-  },
-  geo: {
-    latitude: 39.1736056,
-    longitude: -94.5478212,
-  },
-  sameAs: ["https://www.facebook.com/antiochurbangrowers"],
-  storeUrl: "https://antiochurbang.square.site",
+	name: SITE_NAME,
+	telephone: "+18166994953",
+	email: null,
+	address: {
+		street: "2727 NE 44th St",
+		city: "Kansas City",
+		region: "MO",
+		postalCode: "64117",
+		country: "US",
+	},
+	geo: {
+		latitude: 39.1736056,
+		longitude: -94.5478212,
+	},
+	sameAs: ["https://www.facebook.com/antiochurbangrowers"],
+	storeUrl: "https://antiochurbang.square.site",
 };
