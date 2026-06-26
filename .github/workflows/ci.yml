@@ -55,7 +55,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    continue-on-error: true  # static site — no server runtime; audit is informational only
+    continue-on-error: true  # non-blocking; static site has no server runtime
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -63,4 +63,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm audit
+      # Only flag high/critical. Moderate advisories here are all build/dev-time
+      # tooling (jest, gray-matter, next's postcss) with no static-site runtime
+      # exposure, and their only "fix" is major downgrades — so they're noise.
+      - run: npm audit --audit-level=high
