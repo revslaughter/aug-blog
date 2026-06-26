@@ -13,6 +13,9 @@
 /.next/
 /out/
 
+# generated at build time (prebuild)
+/public/sitemap.xml
+
 # production
 /build
 
