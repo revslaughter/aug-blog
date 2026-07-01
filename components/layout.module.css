@@ -1,5 +1,9 @@
 .mainContent {
-  background-color: #ebeee3;
-  margin: 2rem 0.5rem;
-  border-radius: 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1.75rem;
+  box-shadow: 0 1.5rem 3rem rgba(70, 53, 42, 0.1);
+  margin: clamp(1.5rem, 4vw, 3.5rem) auto;
+  padding: clamp(2rem, 6vw, 4.5rem) clamp(1.5rem, 6vw, 4rem);
+  width: min(100% - 1.5rem, 72rem);
 }

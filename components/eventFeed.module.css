@@ -3,26 +3,42 @@
 }
 
 .heading {
-  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.headingIcon {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .empty {
   font-style: italic;
+  color: var(--color-accent-green-soft);
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .card {
   display: block;
   text-align: left;
-  background-color: #ebeee3;
-  border: 1px solid #c1cf9c;
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent-grape);
+  border-radius: 0.9rem;
+  padding: 1.25rem 1.5rem;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: 0 0.5rem 1.25rem rgba(70, 53, 42, 0.1);
+  transform: translateY(-1px);
 }
 
 .cardLink {
@@ -33,18 +49,21 @@
 .date {
   font-size: 0.9rem;
   font-weight: bold;
-  color: #36460c;
+  color: var(--color-accent-gold);
 }
 
 .title {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
+  margin-top: 0.15rem;
 }
 
 .location {
   font-size: 0.95rem;
+  color: var(--color-accent-green-soft);
 }
 
 .description {
-  margin: 0.5rem 0 0;
+  margin: 0.65rem 0 0;
   font-size: 0.9rem;
+  line-height: 1.5;
 }

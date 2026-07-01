@@ -1,18 +1,45 @@
 @import url("https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
 
+/*
+ * DESIGN TRIAL (feature/design-ideas): a warmer, more spacious palette
+ * evoking a sunlit greenhouse — vine green, grape purple, and date-amber
+ * accents on a soft cream backdrop, in place of the old cool sage/gray.
+ * All colors are custom properties so they're easy to swap while trying
+ * variations.
+ */
+:root {
+  --color-bg: #f3ecd9;
+  --color-surface: #faf6ea;
+  --color-surface-alt: #eef1de;
+  --color-text: #46352a;
+  --color-accent-green: #4c6a30;
+  --color-accent-green-soft: #6f8f4a;
+  --color-accent-gold: #a8621b;
+  --color-accent-grape: #6d3c82;
+  --color-border: #cdd8ab;
+}
+
 html,
 body {
   padding: 0;
   margin: 0;
-  color: #483527;
-  background-color: #dcdfd1;
+  color: var(--color-text);
+  background-color: var(--color-bg);
   font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
+  line-height: 1.6;
 }
 
 a {
-  color: inherit;
+  color: var(--color-accent-gold);
   text-decoration: underline;
+  text-underline-offset: 0.15em;
+  transition: color 0.15s ease;
+}
+
+a:hover,
+a:focus {
+  color: var(--color-accent-grape);
 }
 
 * {
@@ -29,8 +56,10 @@ h3,
 h4,
 h5,
 h6 {
-  line-height: 1;
+  line-height: 1.15;
   text-align: left;
+  color: var(--color-accent-green);
+  letter-spacing: 0.01em;
 }
 
 article > header {
@@ -39,7 +68,7 @@ article > header {
 }
 
 .article-title {
-  color: #36460c;
+  color: var(--color-accent-green);
   font-size: 48px;
   margin-bottom: 0px;
   padding: 8px;
@@ -53,7 +82,7 @@ article > header {
 .article-content {
   text-align: justify;
   font-size: 20px;
-  line-height: 110%;
+  line-height: 1.6;
   margin: 1rem auto;
   max-width: 38rem;
 }
@@ -66,7 +95,18 @@ ul {
 ul > li {
   display: flex;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.75rem 0.5rem;
+}
+
+/* A gentle vine flourish, reused as a section divider wherever a page
+   wants to signal "breathing room" rather than a hard rule. */
+.vine-divider {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  height: 20px;
+  margin: 2rem auto;
+  background: url("/vine-divider.svg") center / contain no-repeat;
 }
 
 /*
