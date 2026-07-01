@@ -13,6 +13,12 @@ const OUT_FILE = path.join(process.cwd(), "public", "sitemap.xml");
 // Static routes and a relative priority hint for crawlers.
 const STATIC_ROUTES = [
   { path: "/", priority: "1.0" },
+  { path: "/plant-sale", priority: "0.8" },
+  { path: "/produce-sale", priority: "0.8" },
+  { path: "/summer-faire", priority: "0.8" },
+  { path: "/workshops", priority: "0.8" },
+  { path: "/mindful-movement", priority: "0.8" },
+  { path: "/compost", priority: "0.8" },
   { path: "/about", priority: "0.7" },
   { path: "/contact", priority: "0.7" },
   { path: "/posts", priority: "0.8" },

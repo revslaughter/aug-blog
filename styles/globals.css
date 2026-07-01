@@ -73,21 +73,30 @@ ul > li {
 ul > li:before {
   content: "\2014";
 }
+*/
 
+/* Nav scaffolding for the section overhaul (see components/layout.js).
+   Static (not fixed) and wrapping, since the link list has grown from 3
+   items to ~10 with the new program sections — a fixed bar sized for 3
+   links would either clip or overlap page content at this count. */
 .headerNav {
-  position: fixed;
-  top: 0;
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   background-color: #c1cf9c;
   color: #221008;
   width: 100%;
-  z-index: 9999;
 }
 
 .headerNavLink {
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
 }
-*/
+
+.headerNavLink a {
+  text-decoration: none;
+}
+
+.headerNavLink a:hover,
+.headerNavLink a:focus {
+  text-decoration: underline;
+}

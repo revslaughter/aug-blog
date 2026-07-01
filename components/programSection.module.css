@@ -1,0 +1,23 @@
+.schedule {
+  margin: 1.5rem 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.5rem;
+  max-width: 32rem;
+}
+
+.schedule dt {
+  font-weight: bold;
+}
+
+.schedule dd {
+  margin: 0;
+}
+
+.storeLink {
+  font-size: 1.5rem;
+}
+
+.note {
+  font-style: italic;
+}
