@@ -4,6 +4,7 @@ import Seo from "../components/seo";
 import StructuredData from "../components/structuredData";
 import ResponsiveSplit from "../components/responsiveSplit";
 import EventFeed from "../components/eventFeed";
+import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
 import { getUpcomingEvents } from "../util/googleCalendar";
 

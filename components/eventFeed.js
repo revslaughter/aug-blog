@@ -24,31 +24,33 @@ import styles from "./eventFeed.module.css";
  */
 export default function EventFeed({ events }) {
   return (
-    <section className={styles.feed} aria-label="Upcoming events">
-      <h2 className={styles.heading}>
-        <Image
-          src="/grape-cluster.svg"
-          width={28}
-          height={28}
-          alt=""
-          aria-hidden="true"
-          className={styles.headingIcon}
-        />
-        Upcoming Events
-      </h2>
-      {events.length === 0 ? (
-        <p className={styles.empty}>
-          No upcoming events right now — check back soon!
-        </p>
-      ) : (
-        <ul className={styles.list}>
-          {events.map((event) => (
-            <EventCard {...event} key={event.id} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+		<section className={styles.feed} aria-label="Upcoming events">
+			<h2 className={styles.heading}>
+				<Image
+					src="/grape-cluster.svg"
+					width={28}
+					height={28}
+					alt=""
+					aria-hidden="true"
+					className={styles.headingIcon}
+				/>
+				Upcoming Events
+			</h2>
+			{events.length === 0 ? (
+				<p className={styles.empty}>
+					No upcoming events right now — check back soon!
+				</p>
+			) : (
+				<ul className={styles.list}>
+					{events
+						.sort((event, anotherEvent) => event.start > anotherEvent.start)
+						.map((event) => (
+							<EventCard {...event} key={event.id} />
+						))}
+				</ul>
+			)}
+		</section>
+	);
 }
 
 function EventCard({ title, start, allDay, location, description, url }) {
@@ -85,16 +87,27 @@ function EventCard({ title, start, allDay, location, description, url }) {
 const DATE_LOCALE = "en-US";
 const DATE_TIME_ZONE = "America/Chicago";
 
+// Built from formatToParts rather than toLocaleString/toLocaleDateString:
+// those insert engine-chosen literal separators (e.g. some ICU builds use
+// a narrow no-break space before AM/PM, others a plain space), which can
+// differ between Node's bundled ICU and a browser's, breaking hydration
+// even with a fixed locale/timeZone. Assembling the string ourselves from
+// the individual parts keeps every byte engine-independent.
 function formatEventDate(start, allDay) {
   const date = new Date(start);
-  return allDay
-    ? date.toLocaleDateString(DATE_LOCALE, {
-        dateStyle: "medium",
-        timeZone: DATE_TIME_ZONE,
-      })
-    : date.toLocaleString(DATE_LOCALE, {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: DATE_TIME_ZONE,
-      });
+  const parts = new Intl.DateTimeFormat(DATE_LOCALE, {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		hour: allDay ? undefined : "numeric",
+		minute: allDay ? undefined : "2-digit",
+		hour12: true,
+		timeZone: DATE_TIME_ZONE,
+	}).formatToParts(date);
+	const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
+
+	const datePart = `${get("month")} ${get("day")}, ${get("year")}`;
+	return allDay
+		? datePart
+		: `${datePart}, ${get("hour")}:${get("minute")} ${get("dayPeriod")}`;
 }
