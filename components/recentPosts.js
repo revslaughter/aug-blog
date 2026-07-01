@@ -14,9 +14,7 @@ export default function RecentPosts({ posts }) {
 function PostPreview({ title, author, slug }) {
   return (
     <div style={{ fontSize: "x-large" }}>
-      <Link href={`/posts/${slug}`}>
-        <a>{title}</a>
-      </Link>
+      <Link href={`/posts/${slug}`}>{title}</Link>
       {` (by ${author})`}
     </div>
   );
