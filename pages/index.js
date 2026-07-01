@@ -2,6 +2,8 @@ import Image from "next/image";
 import Layout from "../components/layout";
 import Seo from "../components/seo";
 import StructuredData from "../components/structuredData";
+import ResponsiveSplit from "../components/responsiveSplit";
+import EventFeed from "../components/eventFeed";
 import styles from "../styles/Home.module.css";
 import { getUpcomingEvents } from "../util/googleCalendar";
 
