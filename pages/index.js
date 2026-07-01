@@ -3,6 +3,7 @@ import Layout from "../components/layout";
 import Seo from "../components/seo";
 import StructuredData from "../components/structuredData";
 import styles from "../styles/Home.module.css";
+import { getUpcomingEvents } from "../util/googleCalendar";
 
 /*
 const LINK_CONTAINER = {
@@ -22,7 +23,7 @@ const LINK_ITEM = {
 };
 */
 
-export default function Home() {
+export default function Home({ events }) {
 	return (
 		<Layout>
 			<Seo path="/" />
@@ -87,7 +88,41 @@ export default function Home() {
           <div style={LINK_ITEM}>Our Store</div>
           </div>
         */}
+				{/*
+          Plain list for now — the responsive sidebar/card layout for this
+          feed is a separate workstream (feature/responsive-event-layout).
+        */}
+				{events.length > 0 && (
+					<div style={{ paddingTop: "2rem", width: "100%", maxWidth: "30rem" }}>
+						<h2>Upcoming Events</h2>
+						<ul>
+							{events.map((event) => (
+								<li key={event.id} style={{ display: "block", textAlign: "left" }}>
+									<strong>{event.title}</strong>
+									<div>{formatEventDate(event)}</div>
+									{event.location && <div>{event.location}</div>}
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
 			</main>
 		</Layout>
 	);
+}
+
+function formatEventDate({ start, allDay }) {
+	const date = new Date(start);
+	return allDay
+		? date.toLocaleDateString(undefined, { dateStyle: "medium" })
+		: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+export async function getStaticProps() {
+	const events = await getUpcomingEvents();
+	return {
+		props: {
+			events,
+		},
+	};
 }

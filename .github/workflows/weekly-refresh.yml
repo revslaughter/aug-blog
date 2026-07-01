@@ -1,0 +1,23 @@
+name: Weekly content refresh
+
+# The site is a static export with no server runtime, so the Google Calendar
+# feed on the homepage is baked in at build time (see util/googleCalendar.js).
+# This triggers a rebuild on a schedule so upcoming events stay current even
+# when nobody has pushed a code change.
+#
+# Requires a NETLIFY_BUILD_HOOK_URL repository secret — create one under
+# Netlify: Site configuration > Build & deploy > Build hooks.
+on:
+  schedule:
+    - cron: "0 13 * * 1" # Mondays, 8am America/Chicago (13:00 UTC)
+  workflow_dispatch: {}
+
+jobs:
+  trigger-rebuild:
+    name: Trigger Netlify rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Netlify build hook
+        run: curl --fail -X POST "$NETLIFY_BUILD_HOOK_URL"
+        env:
+          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
