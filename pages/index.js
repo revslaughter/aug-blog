@@ -39,6 +39,7 @@ export default function Home({ events }) {
 							width={365}
 							height={183}
 							alt="Antioch Urban Growers"
+							preload
 						/>
 						{/*
               Placeholder tagline for this design trial — easy to swap for
@@ -46,8 +47,8 @@ export default function Home({ events }) {
               chair" tone the rest of the page follows.
             */}
 						<p className={styles.tagline}>
-							A sun-warmed greenhouse and community garden, growing food,
-							friendships, and the occasional impromptu karaoke set.
+							Quick wafting zephyrs vex bold Jim. Quick zephyrs blow, vexing
+							daft Jim.
 						</p>
 						<div className={styles.storeLink}>
 							<a
@@ -58,7 +59,7 @@ export default function Home({ events }) {
 								Store
 							</a>
 						</div>
-						<span className="vine-divider" aria-hidden="true" />
+						<PlantDivider />
 						<div className={styles.infoBlock}>
 							<div>
 								<a
