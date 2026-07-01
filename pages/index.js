@@ -4,6 +4,7 @@ import Seo from "../components/seo";
 import StructuredData from "../components/structuredData";
 import ResponsiveSplit from "../components/responsiveSplit";
 import EventFeed from "../components/eventFeed";
+import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
 
 // Placeholder events so the responsive layout is demoable on its own.
@@ -13,20 +14,28 @@ import styles from "../styles/Home.module.css";
 // matches client hydration output exactly, however long after build the
 // page is actually opened in a browser.
 const PLACEHOLDER_EVENTS = [
-  {
-    id: "placeholder-1",
-    title: "Community Garden Workday",
-    start: "2026-08-15T18:00:00.000Z",
-    allDay: false,
-    location: "2727 NE 44th St, Kansas City, MO",
-  },
-  {
-    id: "placeholder-2",
-    title: "Composting 101 Workshop",
-    start: "2026-08-22T18:00:00.000Z",
-    allDay: false,
-    location: "2727 NE 44th St, Kansas City, MO",
-  },
+	{
+		id: "placeholder-1",
+		title: "Community Placeholder Workday",
+		start: "2026-08-15T15:00:00.000Z",
+		allDay: false,
+		location: "2727 NE 44th St, Kansas City, MO",
+	},
+	{
+		id: "placeholder-2",
+		title: "Composting 101 Placeholder",
+		start: "2026-08-22T18:00:00.000Z",
+		allDay: false,
+		location: "2727 NE 44th St, Kansas City, MO",
+	},
+	,
+	{
+		id: "placeholder-3",
+		title: "Locavore Dinner Placeholder",
+		start: "2026-07-12T23:00:00.000Z",
+		allDay: false,
+		location: "999 Some Ave, Someplace, Somewhere",
+	},
 ];
 
 /*
@@ -60,6 +69,7 @@ export default function Home() {
 							width={365}
 							height={183}
 							alt="Antioch Urban Growers"
+							preload
 						/>
 						{/*
               Placeholder tagline for this design trial — easy to swap for
@@ -67,8 +77,8 @@ export default function Home() {
               chair" tone the rest of the page follows.
             */}
 						<p className={styles.tagline}>
-							A sun-warmed greenhouse and community garden, growing food,
-							friendships, and the occasional impromptu karaoke set.
+							Quick wafting zephyrs vex bold Jim. Quick zephyrs blow, vexing
+							daft Jim.
 						</p>
 						<div className={styles.storeLink}>
 							<a
@@ -79,7 +89,7 @@ export default function Home() {
 								Store
 							</a>
 						</div>
-						<span className="vine-divider" aria-hidden="true" />
+						<PlantDivider />
 						<div className={styles.infoBlock}>
 							<div>
 								<a

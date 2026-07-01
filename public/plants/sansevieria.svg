@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <g transform="rotate(-24 20 38)">
+    <path d="M20 38 C 23 30, 23 12, 20 4 C 17 12, 17 30, 20 38 Z" fill="#2f6b4a" />
+    <path d="M17.5 14 C 19 15, 21 15, 22.5 14" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+    <path d="M17.5 22 C 19 23, 21 23, 22.5 22" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+  </g>
+  <g transform="rotate(-8 20 38)">
+    <path d="M20 38 C 23 30, 23 12, 20 4 C 17 12, 17 30, 20 38 Z" fill="#2f6b4a" />
+    <path d="M17.5 14 C 19 15, 21 15, 22.5 14" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+    <path d="M17.5 22 C 19 23, 21 23, 22.5 22" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+  </g>
+  <g transform="rotate(8 20 38)">
+    <path d="M20 38 C 23 30, 23 12, 20 4 C 17 12, 17 30, 20 38 Z" fill="#2f6b4a" />
+    <path d="M17.5 14 C 19 15, 21 15, 22.5 14" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+    <path d="M17.5 22 C 19 23, 21 23, 22.5 22" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+  </g>
+  <g transform="rotate(24 20 38)">
+    <path d="M20 38 C 23 30, 23 12, 20 4 C 17 12, 17 30, 20 38 Z" fill="#2f6b4a" />
+    <path d="M17.5 14 C 19 15, 21 15, 22.5 14" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+    <path d="M17.5 22 C 19 23, 21 23, 22.5 22" stroke="#6fae7a" stroke-width="1" fill="none" stroke-linecap="round" />
+  </g>
+</svg>
