@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  gap: 3rem;
   width: 100%;
 }
 
@@ -13,16 +13,20 @@
 }
 
 /* "Larger screens" per design: side-by-side, existing content sidebared
-   to the left at a fixed width, the second region flexing to fill the rest. */
+   to the left at a fixed width, the second region flexing to fill the rest.
+   A soft vine-green divider stands in for a trellis between the two. */
 @media (min-width: 800px) {
   .wrapper {
     flex-direction: row;
     align-items: flex-start;
     justify-content: center;
+    gap: 2.5rem;
   }
 
   .main {
     flex: 0 1 380px;
+    padding-right: 2rem;
+    border-right: 1px solid var(--color-border);
   }
 
   .aside {

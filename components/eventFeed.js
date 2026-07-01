@@ -1,3 +1,4 @@
+import Image from "next/image";
 import styles from "./eventFeed.module.css";
 
 /**
@@ -24,7 +25,17 @@ import styles from "./eventFeed.module.css";
 export default function EventFeed({ events }) {
   return (
     <section className={styles.feed} aria-label="Upcoming events">
-      <h2 className={styles.heading}>Upcoming Events</h2>
+      <h2 className={styles.heading}>
+        <Image
+          src="/grape-cluster.svg"
+          width={28}
+          height={28}
+          alt=""
+          aria-hidden="true"
+          className={styles.headingIcon}
+        />
+        Upcoming Events
+      </h2>
       {events.length === 0 ? (
         <p className={styles.empty}>
           No upcoming events right now — check back soon!

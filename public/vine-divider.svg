@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 40" preserveAspectRatio="none">
+  <path d="M0 20 Q 25 4, 50 20 T 100 20 T 150 20 T 200 20 T 250 20 T 300 20 T 350 20 T 400 20"
+        fill="none" stroke="#6f8f4a" stroke-width="2" opacity="0.55" />
+  <g fill="#6f8f4a" opacity="0.6">
+    <ellipse cx="25" cy="12" rx="7" ry="4" transform="rotate(-30 25 12)" />
+    <ellipse cx="75" cy="28" rx="7" ry="4" transform="rotate(30 75 28)" />
+    <ellipse cx="125" cy="12" rx="7" ry="4" transform="rotate(-30 125 12)" />
+    <ellipse cx="175" cy="28" rx="7" ry="4" transform="rotate(30 175 28)" />
+    <ellipse cx="225" cy="12" rx="7" ry="4" transform="rotate(-30 225 12)" />
+    <ellipse cx="275" cy="28" rx="7" ry="4" transform="rotate(30 275 28)" />
+    <ellipse cx="325" cy="12" rx="7" ry="4" transform="rotate(-30 325 12)" />
+    <ellipse cx="375" cy="28" rx="7" ry="4" transform="rotate(30 375 28)" />
+  </g>
+  <g fill="#b5651d" opacity="0.65">
+    <circle cx="50" cy="20" r="3.5" />
+    <circle cx="100" cy="20" r="3.5" />
+    <circle cx="150" cy="20" r="3.5" />
+    <circle cx="200" cy="20" r="3.5" />
+    <circle cx="250" cy="20" r="3.5" />
+    <circle cx="300" cy="20" r="3.5" />
+    <circle cx="350" cy="20" r="3.5" />
+  </g>
+</svg>
