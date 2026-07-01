@@ -111,11 +111,21 @@ export default function Home({ events }) {
 	);
 }
 
+// Fixed locale/timezone (not the visitor's) so the statically prerendered
+// HTML always matches what the client renders on hydration, regardless of
+// the browser's locale or how long after build the page is opened.
+const DATE_LOCALE = "en-US";
+const DATE_TIME_ZONE = "America/Chicago";
+
 function formatEventDate({ start, allDay }) {
 	const date = new Date(start);
 	return allDay
-		? date.toLocaleDateString(undefined, { dateStyle: "medium" })
-		: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+		? date.toLocaleDateString(DATE_LOCALE, { dateStyle: "medium", timeZone: DATE_TIME_ZONE })
+		: date.toLocaleString(DATE_LOCALE, {
+				dateStyle: "medium",
+				timeStyle: "short",
+				timeZone: DATE_TIME_ZONE,
+		  });
 }
 
 export async function getStaticProps() {
