@@ -8,6 +8,15 @@ import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
 import { getUpcomingEvents } from "../util/googleCalendar";
 
+// Filtered once, when this module runs at export/build time — this site
+// is a static export rebuilt weekly, so an event going stale for a few
+// days between builds is fine. Filtering by "now" on every client render
+// instead would make the static HTML depend on when it's opened, which is
+// the same class of hydration mismatch already hit once in EventFeed.
+const UPCOMING_PLACEHOLDER_EVENTS = PLACEHOLDER_EVENTS.filter(
+	(event) => new Date(event.start) >= new Date()
+);
+
 /*
 const LINK_CONTAINER = {
   display: "flex",
@@ -101,7 +110,7 @@ export default function Home({ events }) {
             */}
 					</main>
 				}
-				aside={<EventFeed events={PLACEHOLDER_EVENTS} />}
+				aside={<EventFeed events={UPCOMING_PLACEHOLDER_EVENTS} />}
 			/>
 		</Layout>
 	);
