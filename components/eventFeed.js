@@ -42,8 +42,8 @@ export default function EventFeed({ events }) {
 				</p>
 			) : (
 				<ul className={styles.list}>
-					{events
-						.sort((event, anotherEvent) => event.start > anotherEvent.start)
+					{[...events]
+						.sort((event, anotherEvent) => new Date(event.start) - new Date(anotherEvent.start))
 						.map((event) => (
 							<EventCard {...event} key={event.id} />
 						))}
