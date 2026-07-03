@@ -8,31 +8,6 @@ import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
 import { getUpcomingEvents } from "../util/googleCalendar";
 
-// Fallback so the event feed still shows something once the real Google
-// Calendar isn't wired up yet (no GOOGLE_CALENDAR_ICS_URL configured) —
-// used only when getStaticProps returns zero real events. Filtered once,
-// when this module runs at export/build time — this site is a static
-// export rebuilt weekly, so an event going stale for a few days between
-// builds is fine. Filtering by "now" on every client render instead would
-// make the static HTML depend on when it's opened, which is the same
-// class of hydration mismatch already hit once in EventFeed.
-const PLACEHOLDER_EVENTS = [
-	{
-		id: "placeholder-1",
-		title: "Community Garden Workday",
-		start: "2026-08-15T18:00:00.000Z",
-		allDay: false,
-		location: "2727 NE 44th St, Kansas City, MO",
-	},
-	{
-		id: "placeholder-2",
-		title: "Composting 101 Workshop",
-		start: "2026-08-22T18:00:00.000Z",
-		allDay: false,
-		location: "2727 NE 44th St, Kansas City, MO",
-	},
-].filter((event) => new Date(event.start) >= new Date());
-
 /*
 const LINK_CONTAINER = {
   display: "flex",
@@ -52,7 +27,6 @@ const LINK_ITEM = {
 */
 
 export default function Home({ events }) {
-	const displayEvents = events.length > 0 ? events : PLACEHOLDER_EVENTS;
 	return (
 		<Layout>
 			<Seo path="/" />
@@ -127,7 +101,7 @@ export default function Home({ events }) {
             */}
 					</main>
 				}
-				aside={<EventFeed events={displayEvents} />}
+				aside={<EventFeed events={events} />}
 			/>
 		</Layout>
 	);
