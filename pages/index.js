@@ -8,67 +8,6 @@ import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
 import { getUpcomingEvents } from "../util/googleCalendar";
 
-// Placeholder events so the responsive layout is demoable on its own.
-// feature/google-calendar-integration replaces this with real data fetched
-// at build time via getStaticProps — that's a separate workstream.
-const PLACEHOLDER_EVENTS = [
-	{
-		id: "placeholder-1",
-		title: "Community Placeholder Workday",
-		start: "2026-08-15T15:00:00.000Z",
-		allDay: false,
-		location: "2727 NE 44th St, Kansas City, MO",
-	},
-	{
-		id: "placeholder-2",
-		title: "Composting 101 Placeholder",
-		start: "2026-08-22T18:00:00.000Z",
-		allDay: false,
-		location: "2727 NE 44th St, Kansas City, MO",
-	},
-	{
-		id: "placeholder-PAST",
-		title: "Some other Placeholder",
-		start: "2026-05-12T23:00:00.000Z",
-		allDay: false,
-		location: "Someplace, Somewhere",
-	},
-	{
-		id: "placeholder-3",
-		title: "Locavore Dinner Placeholder",
-		start: "2026-07-12T23:00:00.000Z",
-		allDay: false,
-		location: "999 Some Ave, Someplace, Somewhere",
-	},
-];
-
-// Filtered once, when this module runs at export/build time — this site
-// is a static export rebuilt weekly, so an event going stale for a few
-// days between builds is fine. Filtering by "now" on every client render
-// instead would make the static HTML depend on when it's opened, which is
-// the same class of hydration mismatch already hit once in EventFeed.
-const UPCOMING_PLACEHOLDER_EVENTS = PLACEHOLDER_EVENTS.filter(
-	(event) => new Date(event.start) >= new Date()
-);
-
-/*
-const LINK_CONTAINER = {
-  display: "flex",
-  flexDirection: "row",
-  maxWidth: "15rem",
-  flexBasis: "7rem",
-  justifyContent: "space-evenly",
-  alignContent: "space-around",
-  flexWrap: "wrap",
-};
-
-const LINK_ITEM = {
-  margin: "0.5rem 0.5rem",
-  display: "flex",
-  justifyContent: "center",
-};
-*/
-
 export default function Home({ events }) {
 	return (
 		<Layout>
@@ -80,7 +19,12 @@ export default function Home({ events }) {
 						<Image
 							src="/AUG-logo-transparent-background-1.png"
 							width={365}
-							height={183}
+							height={165}
+							sizes="100vw"
+							style={{
+								maxWidth: "100%",
+								height: "auto",
+							}}
 							alt="Antioch Urban Growers"
 							priority
 						/>
