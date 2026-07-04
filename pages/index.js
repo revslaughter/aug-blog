@@ -41,14 +41,10 @@ export default function Home({ events }) {
 							alt="Antioch Urban Growers"
 							priority
 						/>
-						{/*
-              Placeholder tagline for this design trial — easy to swap for
-              real copy. Meant to set the "sunlit greenhouse, pull up a
-              chair" tone the rest of the page follows.
-            */}
 						<p className={styles.tagline}>
-							Quick wafting zephyrs vex bold Jim. Quick zephyrs blow, vexing
-							daft Jim.
+							We want to offer every customer the opportunity to experience how
+							vegetables, herbs, flowers were intended to look, smell, and
+							taste!
 						</p>
 						<div className={styles.storeLink}>
 							<a
@@ -59,7 +55,6 @@ export default function Home({ events }) {
 								Store
 							</a>
 						</div>
-						<PlantDivider />
 						<div className={styles.infoBlock}>
 							<div>
 								<a
@@ -91,14 +86,7 @@ export default function Home({ events }) {
 								<a href="tel:+18166994953">(816) 699-4953</a>
 							</div>
 						</div>
-						{/*
-              <div style={LINK_CONTAINER}>
-              <div style={LINK_ITEM}>Community Farms</div>
-              <div style={LINK_ITEM}>Join our Discord</div>
-              <div style={LINK_ITEM}>Blog</div>
-              <div style={LINK_ITEM}>Our Store</div>
-              </div>
-            */}
+						<PlantDivider />
 					</main>
 				}
 				aside={<EventFeed events={events} />}

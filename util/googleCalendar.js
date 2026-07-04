@@ -14,7 +14,7 @@ import ical from "node-ical";
  */
 
 const DEFAULT_LIMIT = 6;
-const DEFAULT_WINDOW_DAYS = 90;
+const DEFAULT_WINDOW_DAYS = 30;
 
 /**
  * @typedef {{

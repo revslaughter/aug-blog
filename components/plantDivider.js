@@ -30,7 +30,7 @@ const SHUFFLED_PLANT_ICONS = [
  *
  * @param {{count?: number, offset?: number}} props
  */
-export default function PlantDivider({ count = 5, offset = 0 }) {
+export default function PlantDivider({ count = 10, offset = 0 }) {
   const icons = Array.from(
     { length: count },
     (_, i) => SHUFFLED_PLANT_ICONS[(offset + i) % SHUFFLED_PLANT_ICONS.length]
