@@ -50,6 +50,30 @@ scripts/           Build-time sitemap generator
 styles/            CSS modules + globals
 ```
 
+## Upcoming events (Google Calendar)
+
+The homepage shows upcoming events pulled from a public Google Calendar. Since
+the site is a static export with no server runtime, the feed is fetched and
+baked into the page at **build time** (`util/googleCalendar.js`, called from
+`pages/index.js`'s `getStaticProps`) — not fetched by the visitor's browser.
+
+Setup:
+
+1. In Google Calendar, go to the calendar's **Settings and sharing** >
+   **Integrate calendar**, and copy the **Secret address in iCal format**.
+2. Set it as the `GOOGLE_CALENDAR_ICS_URL` environment variable in Netlify
+   (Site configuration > Environment variables) and in your local `.env.local`
+   for `npm run dev`.
+3. If the calendar has no events, or the env var is unset, or the fetch
+   fails, the homepage simply omits the events section — a bad calendar feed
+   can never break the build.
+
+Because the data is baked in at build time, it only updates on a fresh
+deploy. `.github/workflows/weekly-refresh.yml` triggers a Netlify rebuild
+every Monday (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
+current even without a code push. Trigger it manually anytime from the
+Actions tab, or just push a commit.
+
 ## Writing a blog post
 
 Copy `_posts/template.md`, rename it to your post's slug (e.g.

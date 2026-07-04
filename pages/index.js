@@ -6,6 +6,7 @@ import ResponsiveSplit from "../components/responsiveSplit";
 import EventFeed from "../components/eventFeed";
 import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
+import { getUpcomingEvents } from "../util/googleCalendar";
 
 // Placeholder events so the responsive layout is demoable on its own.
 // feature/google-calendar-integration replaces this with real data fetched
@@ -68,7 +69,7 @@ const LINK_ITEM = {
 };
 */
 
-export default function Home() {
+export default function Home({ events }) {
 	return (
 		<Layout>
 			<Seo path="/" />
@@ -81,16 +82,12 @@ export default function Home() {
 							width={365}
 							height={183}
 							alt="Antioch Urban Growers"
-							preload
+							priority
 						/>
-						{/*
-              Placeholder tagline for this design trial — easy to swap for
-              real copy. Meant to set the "sunlit greenhouse, pull up a
-              chair" tone the rest of the page follows.
-            */}
 						<p className={styles.tagline}>
-							Quick wafting zephyrs vex bold Jim. Quick zephyrs blow, vexing
-							daft Jim.
+							We want to offer every customer the opportunity to experience how
+							vegetables, herbs, flowers were intended to look, smell, and
+							taste!
 						</p>
 						<div className={styles.storeLink}>
 							<a
@@ -101,7 +98,6 @@ export default function Home() {
 								Store
 							</a>
 						</div>
-						<PlantDivider />
 						<div className={styles.infoBlock}>
 							<div>
 								<a
@@ -133,18 +129,20 @@ export default function Home() {
 								<a href="tel:+18166994953">(816) 699-4953</a>
 							</div>
 						</div>
-						{/*
-              <div style={LINK_CONTAINER}>
-              <div style={LINK_ITEM}>Community Farms</div>
-              <div style={LINK_ITEM}>Join our Discord</div>
-              <div style={LINK_ITEM}>Blog</div>
-              <div style={LINK_ITEM}>Our Store</div>
-              </div>
-            */}
+						<PlantDivider />
 					</main>
 				}
-				aside={<EventFeed events={UPCOMING_PLACEHOLDER_EVENTS} />}
+				aside={<EventFeed events={events} />}
 			/>
 		</Layout>
 	);
+}
+
+export async function getStaticProps() {
+	const events = await getUpcomingEvents();
+	return {
+		props: {
+			events,
+		},
+	};
 }
