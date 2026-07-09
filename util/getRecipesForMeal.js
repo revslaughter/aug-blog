@@ -28,5 +28,8 @@ export function getRecipeForID(id) {
 }
 
 export function getAllRecipes() {
-	return [getRecipeForID("template"), getRecipeForID("test")];
+	const recipeFiles = fs.readdirSync(RECIPES_DIR);
+	return recipeFiles
+		.map((name) => name.replace(/\.md$/, "")) //strip file extension
+		.map((id) => getRecipeForID(id));
 }
