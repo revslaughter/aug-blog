@@ -16,11 +16,12 @@ export default function Recipes() {
 					<h1>Recipes</h1>
 				</header>
 				Yum! Cooking is great.
-
+				<p>
+					<Link href={`/recipes/test`}>test</Link>
+				</p>
 				<p>
 					<Link href={`/recipes/${meal}`}>{meal}</Link>
 				</p>
-
 			</article>
 		</Layout>
 	);

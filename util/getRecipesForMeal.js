@@ -28,5 +28,5 @@ export function getRecipeForID(id) {
 }
 
 export function getAllRecipes() {
-	return [getRecipeForID("template")];
+	return [getRecipeForID("template"), getRecipeForID("test")];
 }
