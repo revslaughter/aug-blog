@@ -27,7 +27,8 @@ body {
   color: var(--color-text);
   background-color: var(--color-bg);
   font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
-  line-height: 1.6;
+  font-size: 20px;
+  line-height: 1.4;
 }
 
 a {
