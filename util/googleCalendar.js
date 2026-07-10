@@ -11,10 +11,16 @@ import ical from "node-ical";
  * the calendar's "Secret address in iCal format" from Google Calendar
  * Settings > Settings for my calendars > [calendar] > Integrate calendar.
  * That URL is unauthenticated but unguessable, so no API key/OAuth needed.
+ *
+ * Only events whose title is prefixed with "[PUBLIC]" are published to the
+ * site (see #17) — the prefix is stripped before display. This lets a
+ * non-technical client control what's public just by editing event titles
+ * in Google Calendar.
  */
 
 const DEFAULT_LIMIT = 6;
 const DEFAULT_WINDOW_DAYS = 30;
+const PUBLIC_PREFIX = "[PUBLIC]";
 
 /**
  * @typedef {{
@@ -58,7 +64,7 @@ export async function getUpcomingEvents({
   const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
 
   const events = Object.values(calendar)
-    .filter((entry) => entry.type === "VEVENT")
+    .filter((entry) => entry.type === "VEVENT" && isPublicSummary(entry.summary))
     .flatMap((entry) => expandOccurrences(entry, now, windowEnd));
 
   events.sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -99,6 +105,32 @@ function expandOccurrences(entry, now, windowEnd) {
 }
 
 /**
+ * Whether an event's title marks it for publication. Case-insensitive and
+ * tolerant of stray whitespace, since the client hand-types this into
+ * Google Calendar rather than through any validated UI.
+ *
+ * @param {unknown} summary
+ * @returns {boolean}
+ */
+function isPublicSummary(summary) {
+  return (
+    typeof summary === "string" &&
+    summary.trim().toUpperCase().startsWith(PUBLIC_PREFIX)
+  );
+}
+
+/**
+ * Strip the "[PUBLIC]" prefix (and surrounding whitespace) from a title
+ * that has already passed {@link isPublicSummary}.
+ *
+ * @param {string} summary
+ * @returns {string}
+ */
+function stripPublicPrefix(summary) {
+  return summary.trim().slice(PUBLIC_PREFIX.length).trim() || "Untitled event";
+}
+
+/**
  * @param {import("node-ical").VEvent} entry
  * @param {Date|string} start
  * @param {Date|string} end
@@ -108,7 +140,7 @@ function expandOccurrences(entry, now, windowEnd) {
 function toCalendarEvent(entry, start, end, idSuffix = "") {
   return {
     id: `${entry.uid}${idSuffix}`,
-    title: entry.summary || "Untitled event",
+    title: stripPublicPrefix(entry.summary),
     start: new Date(start).toISOString(),
     end: end ? new Date(end).toISOString() : new Date(start).toISOString(),
     allDay: entry.datetype === "date",

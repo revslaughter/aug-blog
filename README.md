@@ -68,6 +68,11 @@ Setup:
    fails, the homepage simply omits the events section — a bad calendar feed
    can never break the build.
 
+**Publishing an event:** only events whose title starts with `[PUBLIC]` are
+shown on the site — everything else on the calendar stays private. Just
+prefix the title in Google Calendar, e.g. rename "Bunny Event" to
+`[PUBLIC] Bunny Event`; the prefix is stripped automatically before display.
+
 Because the data is baked in at build time, it only updates on a fresh
 deploy. `.github/workflows/weekly-refresh.yml` triggers a Netlify rebuild
 every Monday (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
