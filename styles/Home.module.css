@@ -21,7 +21,7 @@
 }
 
 .storeLink {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
 }
 
 .infoBlock {
@@ -35,6 +35,7 @@
   font-weight: bold;
   line-height: 1.5;
   max-width: 24rem;
+  display: flex;
 }
 
 .footer {

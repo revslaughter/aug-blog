@@ -104,10 +104,9 @@ ul > li {
 .vine-divider {
   display: block;
   width: 100%;
-  max-width: 22rem;
   height: 20px;
-  margin: 2rem auto;
-  background: url("/vine-divider.svg") center / contain no-repeat;
+  margin: 0.5rem auto;
+  background: url("/vine-divider.svg");
 }
 
 /*
