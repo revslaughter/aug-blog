@@ -22,17 +22,21 @@ const NAV_LINKS = [
 
 export default function Layout({ children }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        flexWrap: "nowrap",
-        flexDirection: "column",
-      }}
-    >
-      <Header links={NAV_LINKS} />
-      <div className={styles.mainContent}>{children}</div>
-    </div>
-  );
+		<div
+			style={{
+				display: "flex",
+				justifyContent: "center",
+				alignItems: "center",
+				flexWrap: "nowrap",
+				flexDirection: "column",
+			}}
+		>
+			{/**
+			 * Commenting out for beta branch, would like to post feed feature to prod but
+			 * copy for site sections is not yet final
+			 */}
+			{/*       <Header links={NAV_LINKS} /> */}
+			<div className={styles.mainContent}>{children}</div>
+		</div>
+	);
 }

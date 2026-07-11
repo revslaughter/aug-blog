@@ -29,9 +29,7 @@ export default function Home({ events }) {
 							priority
 						/>
 						<p className={styles.tagline}>
-							We want to offer every customer the opportunity to experience how
-							vegetables, herbs, flowers were intended to look, smell, and
-							taste!
+							Bringing you the true look, scent, and taste of nature.
 						</p>
 						<div className={styles.storeLink}>
 							<a
