@@ -29,7 +29,9 @@ export default function Home({ events }) {
 							priority
 						/>
 						<p className={styles.tagline}>
-							Taking over the world<br />one backyard at a time
+							Taking over the world
+							<br />
+							one backyard at a time
 						</p>
 						<div>
 							<a
@@ -73,7 +75,7 @@ export default function Home({ events }) {
 								Follow us on Facebook for events, videos, and education!
 							</div>
 						</div>
-						<PlantDivider />
+						<PlantDivider leaves />
 					</main>
 				}
 				aside={<EventFeed events={events} />}
