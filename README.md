@@ -79,6 +79,8 @@ every Monday (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
 current even without a code push. Trigger it manually anytime from the
 Actions tab, or just push a commit.
 
+We are experimenting to find the right cadence.
+
 ## Writing a blog post
 
 Copy `_posts/template.md`, rename it to your post's slug (e.g.
