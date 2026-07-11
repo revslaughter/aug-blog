@@ -29,7 +29,7 @@ export default function Home({ events }) {
 							priority
 						/>
 						<p className={styles.tagline}>
-							Bringing you the true look, scent, and taste of nature.
+							Taking over the world one backyard at a time
 						</p>
 						<div className={styles.storeLink}>
 							<a
