@@ -9,6 +9,8 @@
  * variations.
  */
 :root {
+  /* Also hardcoded as the theme-color meta tag in pages/_app.js (meta
+     tags can't reference CSS custom properties) — keep both in sync. */
   --color-bg: #f3ecd9;
   --color-surface: #faf6ea;
   --color-surface-alt: #eef1de;
