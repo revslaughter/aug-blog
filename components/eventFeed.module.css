@@ -9,6 +9,7 @@
   padding: 0.5rem 1.5rem;
   position: sticky;
   top: 0;
+  z-index: 2;
   box-shadow: -5px 10px 5px 5px var(--color-surface);
   background-color: var(--color-surface);
 }
@@ -31,13 +32,14 @@
 
 .card {
   display: block;
+  position: relative;
   text-align: left;
   background-color: var(--color-surface-alt);
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-accent-grape);
   border-radius: 0.9rem;
   padding: 1.25rem 1.5rem;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
 }
 
 .card:hover {
@@ -45,9 +47,22 @@
   transform: translateY(-1px);
 }
 
-.cardLink {
-  display: block;
-  text-decoration: none;
+.cardHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cardStretchedButton {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 
 .date {
@@ -70,4 +85,96 @@
   margin: 0.65rem 0 0;
   font-size: 0.9rem;
   line-height: 1.5;
+  white-space: pre-line;
+}
+
+.seeMore {
+  position: relative;
+  z-index: 1;
+  font-weight: bold;
+  color: var(--color-accent-green);
+  text-decoration: none;
+}
+
+.seeMore:hover {
+  text-decoration: underline;
+}
+
+.inlineLink {
+  position: relative;
+  z-index: 1;
+}
+
+.modal {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0;
+  max-width: 32rem;
+  width: calc(100% - 2rem);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.modal::backdrop {
+  background: rgba(70, 53, 42, 0.45);
+}
+
+.modal[open] .modalCard {
+  animation: modalIn 0.15s ease-out;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalCard {
+  position: relative;
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent-grape);
+  border-radius: 0.9rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+}
+
+.modalCloseButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.modalCloseButton:hover {
+  background-color: var(--color-surface);
+}
+
+.modalTitle {
+  font-size: 1.3rem;
+  margin: 0.15rem 1.5rem 0 0;
+}
+
+.modalLink {
+  display: inline-block;
+  margin-top: 1rem;
+  font-weight: bold;
+  color: var(--color-accent-green);
+  text-decoration: none;
+}
+
+.modalLink:hover {
+  text-decoration: underline;
 }
