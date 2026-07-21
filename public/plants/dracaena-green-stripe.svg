@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <g transform="rotate(-20 20 38)">
+    <path d="M20 38 C 24 30, 24 12, 20 4 C 16 12, 16 30, 20 38 Z" fill="#3f7a3a" />
+    <path d="M20 35 L20 7" stroke="#8fc76b" stroke-width="1.5" fill="none" stroke-linecap="round" />
+  </g>
+  <g>
+    <path d="M20 38 C 24 30, 24 12, 20 4 C 16 12, 16 30, 20 38 Z" fill="#3f7a3a" />
+    <path d="M20 35 L20 7" stroke="#8fc76b" stroke-width="1.5" fill="none" stroke-linecap="round" />
+  </g>
+  <g transform="rotate(20 20 38)">
+    <path d="M20 38 C 24 30, 24 12, 20 4 C 16 12, 16 30, 20 38 Z" fill="#3f7a3a" />
+    <path d="M20 35 L20 7" stroke="#8fc76b" stroke-width="1.5" fill="none" stroke-linecap="round" />
+  </g>
+</svg>

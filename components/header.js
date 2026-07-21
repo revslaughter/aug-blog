@@ -3,9 +3,7 @@ import Link from "next/link";
 function HeaderLink({ title, href }) {
   return (
     <div className="headerNavLink">
-      <Link {...{ href }}>
-        <a>{title}</a>
-      </Link>
+      <Link href={href}>{title}</Link>
     </div>
   );
 }
