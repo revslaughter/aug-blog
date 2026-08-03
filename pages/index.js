@@ -6,7 +6,7 @@ import ResponsiveSplit from "../components/responsiveSplit";
 import EventFeed from "../components/eventFeed";
 import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
-import { getUpcomingEvents } from "../util/googleCalendar";
+import { calendarOptionsFromEnv, getUpcomingEvents } from "../util/googleCalendar";
 
 export default function Home({ events }) {
 	return (
@@ -85,7 +85,7 @@ export default function Home({ events }) {
 }
 
 export async function getStaticProps() {
-	const events = await getUpcomingEvents();
+	const events = await getUpcomingEvents(calendarOptionsFromEnv());
 	return {
 		props: {
 			events,

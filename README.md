@@ -73,10 +73,12 @@ Setup:
    fails, the homepage simply omits the events section — a bad calendar feed
    can never break the build.
 
-`GOOGLE_CALENDAR_ICS_URL` also accepts a path to a local `.ics` file, and
-`CALENDAR_NOW` freezes the "upcoming" window's start. Both exist so the
-screenshot tests can build against a fixed calendar; leave them alone in
-Netlify.
+`getUpcomingEvents` takes the calendar and the clock as arguments and reads no
+globals; `calendarOptionsFromEnv` is the single place that turns environment
+variables into those arguments. Two more it understands — `CALENDAR_FIXTURE_ICS`
+(a local `.ics` path, which wins over the live feed) and `CALENDAR_NOW` (freezes
+the start of the "upcoming" window) — exist so the screenshot tests can build
+against a fixed calendar. Leave both unset in Netlify.
 
 **Publishing an event:** only events whose title starts with `[PUBLIC]` are
 shown on the site — everything else on the calendar stays private. Just
@@ -178,7 +180,7 @@ Two sources of drift are deliberately removed:
   Everything else off-origin is blocked outright, so a slow third party can't
   turn a screenshot into a flake.
 - **Events.** The homepage's event feed comes from a live calendar and would go
-  stale within days, so the test build points `GOOGLE_CALENDAR_ICS_URL` at
+  stale within days, so the test build points `CALENDAR_FIXTURE_ICS` at
   `tests/visual/fixtures/events.ics` and freezes the clock with `CALENDAR_NOW`.
   Same 30-day window, same six cards, same printed dates on every build. The
   fixture is a real iCalendar file parsed by the real `util/googleCalendar.js`,

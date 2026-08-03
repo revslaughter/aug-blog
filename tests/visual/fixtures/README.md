@@ -9,11 +9,14 @@ list of pre-normalized event objects — so the `[PUBLIC]` filter, the recurring
 event expansion and the date normalization are all exercised on the way to the
 screenshot.
 
-`playwright.config.mjs` pins two environment variables for the test build:
+`getUpcomingEvents` takes its calendar source and its clock as arguments, so
+swapping in this file needs no test hook in the data path. The substitution
+happens in `calendarOptionsFromEnv`, the one function that reads the
+environment, via two variables `playwright.config.mjs` pins for the build:
 
 | Variable | Value | Why |
 | --- | --- | --- |
-| `GOOGLE_CALENDAR_ICS_URL` | `tests/visual/fixtures/events.ics` | Local path instead of the live feed |
+| `CALENDAR_FIXTURE_ICS` | `tests/visual/fixtures/events.ics` | Selects `icsFileSource` instead of the live `icsUrlSource` |
 | `CALENDAR_NOW` | `2026-05-04T14:00:00Z` | Freezes "now", so the 30-day window always selects the same events and prints the same dates |
 
 ## What the entries are for

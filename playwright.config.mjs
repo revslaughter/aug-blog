@@ -91,7 +91,7 @@ export default defineConfig({
       // against a fixture calendar instead, with the clock frozen so the same
       // events land in the 30-day window and print the same dates every time.
       // See tests/visual/fixtures/README.md.
-      GOOGLE_CALENDAR_ICS_URL: "tests/visual/fixtures/events.ics",
+      CALENDAR_FIXTURE_ICS: "tests/visual/fixtures/events.ics",
       CALENDAR_NOW: "2026-05-04T14:00:00Z",
       // Blog post dates are rendered with `toDateString()`, which follows the
       // build machine's zone. Pin it so a contributor's laptop doesn't shift
