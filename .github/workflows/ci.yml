@@ -52,6 +52,32 @@ jobs:
       - run: npm ci
       - run: npm run test:ci
 
+  visual:
+    name: Screenshots
+    runs-on: ubuntu-latest
+    needs: lint
+    # Pixel comparison only means anything if the renderer is identical, so the
+    # baselines are pinned to this image — same Chromium build, same FreeType,
+    # same font config as `npm run test:visual:update` is expected to use.
+    # Keep the tag in step with the @playwright/test version in package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    steps:
+      - uses: actions/checkout@v5
+      # No setup-node: the image already ships the Node the browsers were
+      # built against, and swapping it out is how you get subtle mismatches.
+      - run: npm ci
+      - run: npm run test:visual
+      - name: Upload diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest

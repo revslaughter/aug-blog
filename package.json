@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "jest",
-    "test:ci": "jest --ci --passWithNoTests"
+    "test:ci": "jest --ci --passWithNoTests",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
+    "test:visual:report": "playwright show-report"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
@@ -22,6 +25,7 @@
     "remark-html": "^16.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
