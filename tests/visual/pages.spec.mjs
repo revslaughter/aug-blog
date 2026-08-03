@@ -17,6 +17,23 @@ test.describe("page screenshots", () => {
 });
 
 /**
+ * The event modal is the one piece of the site behind an interaction, so a
+ * plain page capture never sees it. Opened on the fixture's Compost Drop-In,
+ * the one entry carrying every optional field — a description long enough to
+ * be truncated on the card, a bare URL and a #hashtag for the linkifier to
+ * pick up, and a `URL:` for the "View original" link.
+ *
+ * Viewport-sized rather than full-page: the dialog is fixed and centred, and
+ * `showModal()` locks body scrolling.
+ */
+test("event modal matches its baseline", async ({ page }) => {
+  await gotoStable(page, "/");
+  await page.getByRole("button", { name: "View details for Compost Program Drop-In" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page).toHaveScreenshot("home-event-modal.png");
+});
+
+/**
  * Coverage guard: a new page under `pages/` should not be able to ship without
  * a baseline. Runs once (the route list is viewport-independent) rather than
  * repeating in every project.

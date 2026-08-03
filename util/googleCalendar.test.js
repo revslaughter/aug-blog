@@ -1,5 +1,5 @@
 jest.mock("node-ical", () => ({
-  async: { fromURL: jest.fn() },
+  async: { fromURL: jest.fn(), parseFile: jest.fn() },
 }));
 
 import ical from "node-ical";
@@ -16,6 +16,8 @@ function vevent(uid, summary, { daysFromNow = 1 } = {}) {
 describe("getUpcomingEvents", () => {
   beforeEach(() => {
     ical.async.fromURL.mockReset();
+    ical.async.parseFile.mockReset();
+    delete process.env.CALENDAR_NOW;
   });
 
   it("returns an empty array when no ICS URL is configured", async () => {
@@ -71,6 +73,79 @@ describe("getUpcomingEvents", () => {
         "Sooner Public Event",
         "Later Public Event",
       ]);
+    });
+  });
+
+  // A local .ics path and a frozen clock are what let the screenshot tests
+  // build the homepage against a fixture calendar (tests/visual/fixtures).
+  describe("fixture calendars", () => {
+    it("reads a local file when the source is not an http(s) URL", async () => {
+      ical.async.parseFile.mockResolvedValue({ a: vevent("a", "[PUBLIC] Fixture Event") });
+
+      const events = await getUpcomingEvents({ icsUrl: "tests/visual/fixtures/events.ics" });
+
+      expect(ical.async.parseFile).toHaveBeenCalledWith("tests/visual/fixtures/events.ics");
+      expect(ical.async.fromURL).not.toHaveBeenCalled();
+      expect(events.map((e) => e.title)).toEqual(["Fixture Event"]);
+    });
+
+    it("still fetches over the network for an http(s) URL", async () => {
+      ical.async.fromURL.mockResolvedValue({});
+
+      await getUpcomingEvents({ icsUrl: ICS_URL });
+
+      expect(ical.async.fromURL).toHaveBeenCalledWith(ICS_URL);
+      expect(ical.async.parseFile).not.toHaveBeenCalled();
+    });
+
+    it("measures the upcoming window from an injected `now`", async () => {
+      const now = new Date("2026-05-04T14:00:00Z");
+      ical.async.fromURL.mockResolvedValue({
+        past: {
+          type: "VEVENT",
+          uid: "past",
+          summary: "[PUBLIC] Last Week",
+          start: new Date("2026-04-28T14:00:00Z"),
+          end: new Date("2026-04-28T15:00:00Z"),
+        },
+        soon: {
+          type: "VEVENT",
+          uid: "soon",
+          summary: "[PUBLIC] Next Week",
+          start: new Date("2026-05-11T14:00:00Z"),
+          end: new Date("2026-05-11T15:00:00Z"),
+        },
+      });
+
+      const events = await getUpcomingEvents({ icsUrl: ICS_URL, now });
+      expect(events.map((e) => e.title)).toEqual(["Next Week"]);
+    });
+
+    it("freezes the clock from CALENDAR_NOW when no `now` is passed", async () => {
+      process.env.CALENDAR_NOW = "2026-05-04T14:00:00Z";
+      ical.async.fromURL.mockResolvedValue({
+        a: {
+          type: "VEVENT",
+          uid: "a",
+          summary: "[PUBLIC] Inside The Frozen Window",
+          start: new Date("2026-05-11T14:00:00Z"),
+          end: new Date("2026-05-11T15:00:00Z"),
+        },
+      });
+
+      const events = await getUpcomingEvents({ icsUrl: ICS_URL });
+      expect(events.map((e) => e.title)).toEqual(["Inside The Frozen Window"]);
+    });
+
+    it("falls back to the real clock when CALENDAR_NOW is unparseable", async () => {
+      process.env.CALENDAR_NOW = "not a date";
+      jest.spyOn(console, "warn").mockImplementation(() => {});
+      ical.async.fromURL.mockResolvedValue({ a: vevent("a", "[PUBLIC] Tomorrow") });
+
+      const events = await getUpcomingEvents({ icsUrl: ICS_URL });
+
+      expect(events.map((e) => e.title)).toEqual(["Tomorrow"]);
+      console.warn.mockRestore();
     });
   });
 });

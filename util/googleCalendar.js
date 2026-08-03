@@ -40,13 +40,17 @@ const PUBLIC_PREFIX = "[PUBLIC]";
  * Never throws — any misconfiguration or fetch failure resolves to an empty
  * array so a flaky calendar can never break the site build.
  *
- * @param {{limit?: number, windowDays?: number, icsUrl?: string}} [options]
+ * `icsUrl` may also be a path to a local `.ics` file, which is how the
+ * screenshot tests feed the page a fixed calendar (see tests/visual).
+ *
+ * @param {{limit?: number, windowDays?: number, icsUrl?: string, now?: Date}} [options]
  * @returns {Promise<CalendarEvent[]>}
  */
 export async function getUpcomingEvents({
   limit = DEFAULT_LIMIT,
   windowDays = DEFAULT_WINDOW_DAYS,
   icsUrl = process.env.GOOGLE_CALENDAR_ICS_URL,
+  now = buildTimeNow(),
 } = {}) {
   if (!icsUrl) {
     return [];
@@ -54,13 +58,14 @@ export async function getUpcomingEvents({
 
   let calendar;
   try {
-    calendar = await ical.async.fromURL(icsUrl);
+    calendar = /^https?:\/\//i.test(icsUrl)
+      ? await ical.async.fromURL(icsUrl)
+      : await ical.async.parseFile(icsUrl);
   } catch (err) {
     console.warn(`[googleCalendar] failed to fetch calendar feed: ${err.message}`);
     return [];
   }
 
-  const now = new Date();
   const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
 
   const events = Object.values(calendar)
@@ -70,6 +75,28 @@ export async function getUpcomingEvents({
   events.sort((a, b) => new Date(a.start) - new Date(b.start));
 
   return events.slice(0, limit);
+}
+
+/**
+ * The moment the "upcoming" window is measured from.
+ *
+ * Normally the wall clock. `CALENDAR_NOW` freezes it, which is what lets a
+ * fixture calendar produce the same six cards — with the same dates printed
+ * on them — on every build, so the screenshot baselines don't go stale
+ * overnight. Leave it unset everywhere but the visual tests.
+ *
+ * @returns {Date}
+ */
+function buildTimeNow() {
+  const override = process.env.CALENDAR_NOW;
+  if (!override) return new Date();
+
+  const frozen = new Date(override);
+  if (Number.isNaN(frozen.getTime())) {
+    console.warn(`[googleCalendar] ignoring unparseable CALENDAR_NOW: ${override}`);
+    return new Date();
+  }
+  return frozen;
 }
 
 /**

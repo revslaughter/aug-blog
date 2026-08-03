@@ -73,6 +73,11 @@ Setup:
    fails, the homepage simply omits the events section — a bad calendar feed
    can never break the build.
 
+`GOOGLE_CALENDAR_ICS_URL` also accepts a path to a local `.ics` file, and
+`CALENDAR_NOW` freezes the "upcoming" window's start. Both exist so the
+screenshot tests can build against a fixed calendar; leave them alone in
+Netlify.
+
 **Publishing an event:** only events whose title starts with `[PUBLIC]` are
 shown on the site — everything else on the calendar stays private. Just
 prefix the title in Google Calendar, e.g. rename "Bunny Event" to
@@ -120,9 +125,14 @@ tests/visual/
   pages.spec.mjs        One test per route per viewport, plus a coverage guard
   fixtures.mjs          Serves fonts offline, blocks all other network access
   stabilize.mjs         Waits out lazy images, webfonts and transitions
+  fixtures/events.ics   The fixed calendar the homepage is built against
   font-cache/           Captured Google Fonts responses (see below)
   __screenshots__/      The baselines, one directory per viewport
 ```
+
+Beyond the pages themselves, one interaction is captured: the event modal,
+opened on the fixture entry that carries every optional field (long
+description, linkified URL and hashtag, "View original" link).
 
 Viewports: `mobile` 375×667, `tablet` 768×1024, `desktop` 1280×800,
 `wide` 1920×1080. They live in `playwright.config.mjs` along with the 1%
@@ -167,10 +177,16 @@ Two sources of drift are deliberately removed:
   (or after changing the `@import`s), then regenerate the baselines.
   Everything else off-origin is blocked outright, so a slow third party can't
   turn a screenshot into a flake.
-- **Events.** The homepage's event feed comes from a live calendar and would
-  go stale within days, so the test build runs with `GOOGLE_CALENDAR_ICS_URL`
-  unset and captures the feed's empty state. Populated states belong in the
-  Jest/RTL component tests.
+- **Events.** The homepage's event feed comes from a live calendar and would go
+  stale within days, so the test build points `GOOGLE_CALENDAR_ICS_URL` at
+  `tests/visual/fixtures/events.ics` and freezes the clock with `CALENDAR_NOW`.
+  Same 30-day window, same six cards, same printed dates on every build. The
+  fixture is a real iCalendar file parsed by the real `util/googleCalendar.js`,
+  so the `[PUBLIC]` filter and the recurring-event expansion are exercised on
+  the way to the screenshot — see `tests/visual/fixtures/README.md` for what
+  each entry covers.
+- **Build timezone.** Blog post dates render through `toDateString()`, which
+  follows the build machine's zone, so the test build pins `TZ=UTC`.
 
 Adding a page under `pages/` without adding it to `routes.mjs` fails the
 "every exported route has a screenshot baseline" test, so nothing slips out of

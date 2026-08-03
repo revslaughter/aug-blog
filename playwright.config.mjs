@@ -86,11 +86,17 @@ export default defineConfig({
     timeout: 180_000,
     stdout: "pipe",
     env: {
-      // Upcoming events come from a live calendar and change day to day, which
-      // would make every baseline stale within a week. Building without the
-      // feed URL renders the feed's deterministic empty state instead; the
-      // populated states are covered by the jest/RTL component tests.
-      GOOGLE_CALENDAR_ICS_URL: "",
+      // Upcoming events come from a live calendar that changes day to day,
+      // which would make the homepage baseline stale within a week. Build
+      // against a fixture calendar instead, with the clock frozen so the same
+      // events land in the 30-day window and print the same dates every time.
+      // See tests/visual/fixtures/README.md.
+      GOOGLE_CALENDAR_ICS_URL: "tests/visual/fixtures/events.ics",
+      CALENDAR_NOW: "2026-05-04T14:00:00Z",
+      // Blog post dates are rendered with `toDateString()`, which follows the
+      // build machine's zone. Pin it so a contributor's laptop doesn't shift
+      // every post date by a day.
+      TZ: "UTC",
     },
   },
 });
