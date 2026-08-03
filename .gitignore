@@ -9,6 +9,13 @@
 /coverage
 /_posts/test-*
 
+# playwright run output — the baselines under tests/visual/__screenshots__
+# are committed, everything a run produces is not
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 /.next/
 /out/

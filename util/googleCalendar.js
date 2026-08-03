@@ -12,6 +12,10 @@ import ical from "node-ical";
  * Settings > Settings for my calendars > [calendar] > Integrate calendar.
  * That URL is unauthenticated but unguessable, so no API key/OAuth needed.
  *
+ * Where the calendar comes from and what "now" means are both arguments to
+ * `getUpcomingEvents` — see `calendarOptionsFromEnv`, the single place that
+ * turns environment variables into those arguments.
+ *
  * Only events whose title is prefixed with "[PUBLIC]" are published to the
  * site (see #17) — the prefix is stripped before display. This lets a
  * non-technical client control what's public just by editing event titles
@@ -36,31 +40,46 @@ const PUBLIC_PREFIX = "[PUBLIC]";
  */
 
 /**
- * Fetch and normalize upcoming events from the configured Google Calendar.
- * Never throws — any misconfiguration or fetch failure resolves to an empty
- * array so a flaky calendar can never break the site build.
+ * Somewhere to get a parsed calendar from. Everything downstream works on the
+ * node-ical object model, so a source's only job is producing one.
  *
- * @param {{limit?: number, windowDays?: number, icsUrl?: string}} [options]
+ * @typedef {() => Promise<Record<string, object>>} CalendarSource
+ */
+
+/**
+ * Select and normalize the upcoming events from a calendar.
+ *
+ * Takes its calendar and its clock as arguments and reads no globals, so a
+ * caller can hand it a live feed, a file on disk, or a literal object. Never
+ * throws — a source that rejects resolves to an empty array, so a flaky
+ * calendar can never break the site build.
+ *
+ * @param {{
+ *   loadCalendar?: CalendarSource|null,
+ *   now?: Date,
+ *   limit?: number,
+ *   windowDays?: number,
+ * }} [options]
  * @returns {Promise<CalendarEvent[]>}
  */
 export async function getUpcomingEvents({
+  loadCalendar = null,
+  now = new Date(),
   limit = DEFAULT_LIMIT,
   windowDays = DEFAULT_WINDOW_DAYS,
-  icsUrl = process.env.GOOGLE_CALENDAR_ICS_URL,
 } = {}) {
-  if (!icsUrl) {
+  if (!loadCalendar) {
     return [];
   }
 
   let calendar;
   try {
-    calendar = await ical.async.fromURL(icsUrl);
+    calendar = await loadCalendar();
   } catch (err) {
     console.warn(`[googleCalendar] failed to fetch calendar feed: ${err.message}`);
     return [];
   }
 
-  const now = new Date();
   const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
 
   const events = Object.values(calendar)
@@ -70,6 +89,71 @@ export async function getUpcomingEvents({
   events.sort((a, b) => new Date(a.start) - new Date(b.start));
 
   return events.slice(0, limit);
+}
+
+/**
+ * The production source: Google's hosted iCal feed.
+ *
+ * @param {string} icsUrl
+ * @returns {CalendarSource}
+ */
+export function icsUrlSource(icsUrl) {
+  return () => ical.async.fromURL(icsUrl);
+}
+
+/**
+ * A calendar checked into the repository. Used by the screenshot tests, whose
+ * baselines would rot within a week against the live feed.
+ *
+ * @param {string} filePath
+ * @returns {CalendarSource}
+ */
+export function icsFileSource(filePath) {
+  return () => ical.async.parseFile(filePath);
+}
+
+/**
+ * The composition root: the only place that reads the environment and decides
+ * which source and which clock `getStaticProps` gets. It lives here rather
+ * than in the page because `getStaticProps` takes no arguments — a static
+ * export gives the build no other channel to configure itself through.
+ *
+ * - `GOOGLE_CALENDAR_ICS_URL` — the live feed (Netlify site settings).
+ * - `CALENDAR_FIXTURE_ICS` — a local .ics path; wins over the live feed.
+ * - `CALENDAR_NOW` — freezes the start of the "upcoming" window, so a fixture
+ *   calendar yields the same events with the same printed dates on every
+ *   build. Set both of these in tests/visual only.
+ *
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {{loadCalendar: CalendarSource|null, now: Date}}
+ */
+export function calendarOptionsFromEnv(env = process.env) {
+  const fixturePath = env.CALENDAR_FIXTURE_ICS;
+  const icsUrl = env.GOOGLE_CALENDAR_ICS_URL;
+
+  let loadCalendar = null;
+  if (fixturePath) {
+    loadCalendar = icsFileSource(fixturePath);
+  } else if (icsUrl) {
+    loadCalendar = icsUrlSource(icsUrl);
+  }
+
+  return { loadCalendar, now: resolveNow(env.CALENDAR_NOW) };
+}
+
+/**
+ * @param {string|undefined} frozen
+ * @returns {Date}
+ */
+function resolveNow(frozen) {
+  if (!frozen) return new Date();
+
+  const parsed = new Date(frozen);
+  if (Number.isNaN(parsed.getTime())) {
+    console.warn(`[googleCalendar] ignoring unparseable CALENDAR_NOW: ${frozen}`);
+    return new Date();
+  }
+  return parsed;
 }
 
 /**
