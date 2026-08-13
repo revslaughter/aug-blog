@@ -10,11 +10,15 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { publishableSlugs, toIsoDate } from "../util/contentFiles.mjs";
+import {
+  publishableSlugs,
+  listContentDir,
+  contentDirsFromEnv,
+  toIsoDate,
+} from "../util/contentFiles.mjs";
 
 const SITE_URL = "https://www.antiochurbangrowers.com";
-const POSTS_DIR = path.join(process.cwd(), "_posts");
-const RECIPES_DIR = path.join(process.cwd(), "_recipes");
+const { postsDir: POSTS_DIR, recipesDir: RECIPES_DIR } = contentDirsFromEnv();
 const OUT_FILE = path.join(process.cwd(), "public", "sitemap.xml");
 
 // Static routes and a relative priority hint for crawlers.
@@ -39,7 +43,7 @@ const STATIC_ROUTES = [
  * @param {boolean} withLastmod Recipes carry no date, so they get no lastmod
  */
 function getContentEntries(dir, routePrefix, priority, withLastmod) {
-  return publishableSlugs(fs.readdirSync(dir)).map((slug) => {
+  return publishableSlugs(listContentDir(dir, fs)).map((slug) => {
     const entry = { path: `${routePrefix}/${slug}`, priority };
     if (!withLastmod) return entry;
 

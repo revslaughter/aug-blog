@@ -1,0 +1,98 @@
+# Sveltia CMS configuration. Read automatically from beside admin/index.html.
+#
+# This is the authoring interface: it writes Markdown into _posts/ and
+# _recipes/ and commits to the repo, so content still lives in git and the
+# site build is unchanged. The point is that nobody has to know that — the
+# editor generates the filename, enforces the frontmatter, and commits, which
+# is where hand-authoring through the GitHub web UI kept going wrong.
+#
+# The format is Netlify/Decap CMS's, which Sveltia is compatible with.
+
+backend:
+  name: github
+  repo: revslaughter/aug-blog
+  # Saving commits to `publish`, a branch that carries content and nothing
+  # else. It is cut from main and only ever receives commits from this editor,
+  # so merging it back into main is a content-only diff — publishing a post
+  # cannot drag half-finished code along with it.
+  #
+  # That is why it is not beta or alpha. Those are integration branches: they
+  # hold code that is not released yet, so merging one to publish a blog post
+  # would release that code too. Content and code move at different speeds and
+  # on different authority — the client decides when a post is ready, the
+  # maintainer decides when code ships — so they get different branches.
+  #
+  # Netlify builds `publish` as a branch deploy, which is where the author
+  # previews their work before asking for it to go live.
+  #
+  # This is also why there is no `publish_mode: editorial_workflow` here. That
+  # would open a pull request per entry and put a person back in the loop
+  # before the author can see anything, which is the bottleneck this setup
+  # exists to remove. The branch gives the same "look before it ships" safety
+  # without blocking the writing.
+  #
+  # After `publish` is merged into main, re-cut it from main so it never drifts:
+  #   git checkout -B publish origin/main && git push --force-with-lease
+  branch: publish
+  commit_messages:
+    create: "Add {{collection}} “{{slug}}”"
+    update: "Update {{collection}} “{{slug}}”"
+    delete: "Delete {{collection}} “{{slug}}”"
+    uploadMedia: "Upload “{{path}}”"
+    deleteMedia: "Delete “{{path}}”"
+
+# Uploaded images are committed to the repo like any other content.
+# media_folder is where they land on disk; public_folder is the URL they are
+# referenced by, which is what gets written into the Markdown.
+media_folder: public/uploads
+public_folder: /uploads
+
+collections:
+  - name: posts
+    label: Blog posts
+    label_singular: Blog post
+    description: >-
+      Posts appear on the blog at /posts, newest first. Saving publishes to the
+      preview site a few minutes later; it reaches the live site when the
+      publish branch is merged.
+    folder: _posts
+    create: true
+    # Derived from the title, so filenames are always URL-safe. This is the
+    # setting that prevents "_posts/Hello world" — a filename with a space and
+    # no extension, which used to fail the build outright.
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}} — {{pubdate}}"
+    sortable_fields: [pubdate, title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      # Written as a bare YYYY-MM-DD date, which is what the loader and the
+      # sitemap generator expect. They tolerate other shapes now, but there is
+      # no reason to emit one.
+      - label: Publish date
+        name: pubdate
+        widget: datetime
+        required: true
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
+        time_format: false
+      # A field named `body` is the document body, below the frontmatter.
+      - { label: Post, name: body, widget: markdown, required: true }
+
+  - name: recipes
+    label: Recipes
+    label_singular: Recipe
+    description: Recipes appear at /recipes.
+    folder: _recipes
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}"
+    sortable_fields: [title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      - { label: Recipe, name: body, widget: markdown, required: true }

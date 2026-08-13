@@ -48,8 +48,10 @@ pages/            Routes (Pages Router)
   posts/            Blog index + dynamic post pages ([slug].js)
 components/         Layout, header/footer, RecentPosts, Seo, StructuredData
 util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
-_posts/            Blog posts (Markdown + frontmatter); template.md is the starter
-public/            Static assets (logo, favicon, robots.txt)
+_posts/            Blog posts (Markdown + frontmatter), written via /admin
+_recipes/          Recipes, same shape as posts but undated
+docs/              Client-facing guide to the editor
+public/            Static assets (logo, favicon, robots.txt); admin/ is the CMS
 scripts/           Build-time sitemap generator, static server + font cache for tests
 styles/            CSS modules + globals
 tests/visual/      Playwright screenshot tests and their committed baselines
@@ -67,7 +69,7 @@ Setup:
 1. In Google Calendar, go to the calendar's **Settings and sharing** >
    **Integrate calendar**, and copy the **Secret address in iCal format**.
 2. Set it as the `GOOGLE_CALENDAR_ICS_URL` environment variable in Netlify
-   (Site configuration > Environment variables) and in your local `.env.local`
+   (Project configuration > Environment variables) and in your local `.env.local`
    for `npm run dev`.
 3. If the calendar has no events, or the env var is unset, or the fetch
    fails, the homepage simply omits the events section — a bad calendar feed
@@ -86,17 +88,23 @@ prefix the title in Google Calendar, e.g. rename "Bunny Event" to
 `[PUBLIC] Bunny Event`; the prefix is stripped automatically before display.
 
 Because the data is baked in at build time, it only updates on a fresh
-deploy. `.github/workflows/weekly-refresh.yml` triggers a Netlify rebuild
-every Monday (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
+deploy. `.github/workflows/daily-refresh.yml` triggers a Netlify rebuild
+every morning (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
 current even without a code push. Trigger it manually anytime from the
 Actions tab, or just push a commit.
 
-We are experimenting to find the right cadence.
+Daily bounds how stale the feed can get to 24 hours, but it is a schedule and
+not a publish hook: an event added this afternoon appears tomorrow morning. For
+a same-day addition, run the workflow by hand.
 
 ## Writing a blog post
 
-Copy `_posts/template.md`, rename it to your post's slug (e.g.
-`spring-plant-sale.md`), and fill in the frontmatter:
+**Use the editor at [`/admin`](#the-editor-admin).** It generates the filename,
+enforces the fields, and commits for you. Everything below describes what it
+writes, and is the fallback for editing a post by hand.
+
+A post is a Markdown file in `_posts/`, named for its slug (e.g.
+`spring-plant-sale.md`), with YAML frontmatter:
 
 ```markdown
 ---
@@ -108,37 +116,133 @@ pubdate: 2026-06-25
 Post body in Markdown…
 ```
 
-The post is picked up automatically — it appears on the blog, gets its own page
-at `/posts/<slug>`, and is added to the sitemap on the next build.
+It is picked up automatically — it appears on the blog, gets its own page at
+`/posts/<slug>`, and is added to the sitemap on the next build. Recipes work
+the same way in `_recipes/`, with `title` and `author` but no date.
 
 `pubdate` is forgiving: a bare date (`2026-06-25`), a quoted one
 (`"2026-06-25"`), or one written out (`June 25, 2026`) all work, and a post
 with no date still publishes — it just sorts last and shows no date. Nothing
 you can type in frontmatter will fail the build.
 
+`_posts/` and `_recipes/` are empty apart from a `.gitkeep`, which is only
+there because git does not track empty directories. Delete it and a fresh
+clone has no `_posts/` at all; the build survives that, but the file costs
+nothing.
+
 ### Draft content
 
-`_posts/template.md`, `_recipes/template.md` and `_recipes/test.md` stay in the
-repo but are **never deployed**. They are what `npm run dev` and the screenshot
-tests render — without them the blog and recipe layouts would have no example
-page and no visual coverage — but the live site does not serve them.
+Files named `test-*` are scratch drafts. They are gitignored, so they never
+leave your machine, and they are **not built into anything that deploys** —
+you can leave one half-written without it reaching the site.
 
 The switch is `INCLUDE_DRAFT_CONTENT`, defined in `util/contentFiles.mjs`:
 
 | Where | Drafts built? | How |
 | ----- | ------------- | --- |
 | `npm run dev` | yes | `NODE_ENV=development` |
-| `npm run test:visual` | yes | set in `playwright.config.mjs` |
 | `npm run build` locally | no | matches what deploys |
+| `npm run test:visual` | no | screenshots describe what deploys |
 | Netlify (all contexts) | no | pinned in `netlify.toml` |
 
 It fails closed: anything that isn't an explicit opt-in leaves drafts out, so a
-misconfigured environment under-publishes rather than leaking a template to the
+misconfigured environment under-publishes rather than leaking a draft to the
 live site. To preview a production build locally, just `npm run build` — to
 preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
 
-Files named `test-*` are gitignored scratch drafts, and are treated as drafts
-by the same rule.
+## The editor (`/admin`)
+
+[Sveltia CMS](https://sveltiacms.app) runs at `/admin` on the deployed site. It
+is a writing interface over this repo: entries are saved as Markdown in
+`_posts/` and `_recipes/` and committed to **`publish`**, a content-only branch
+that Netlify builds as a preview. Content stays in git — the CMS is a front end
+onto it, not a separate store, so it can be removed at any time and every post
+remains a file in this repo.
+
+It exists because publishing by hand meant a GitHub account, a branch, a pull
+request, an exact filename, and correct YAML. The editor generates the
+filename, enforces the fields, and commits.
+
+`docs/writing-for-the-website.md` is the guide to hand the client. It is a
+scaffold — it has `[FILL IN]` placeholders for the URLs, which do not exist
+until `/admin` is deployed and `publish` has a branch deploy — and it should be
+checked against the editor once sign-in works. Keep it in step with
+`config.yml`: if the fields change, the guide changes.
+
+**Setup is two files** — `public/admin/index.html` and
+`public/admin/config.yml`. There is no dependency, no build step, and nothing
+in `package.json`; the CMS is a single-page app loaded from a CDN.
+
+### Signing in
+
+Sveltia needs a way to authenticate against GitHub. Two options, in order of
+preference:
+
+**1. GitHub OAuth through Netlify (recommended for the client).** Netlify hosts
+the OAuth flow, so there is nothing to deploy and no change to `config.yml`.
+
+1. On GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
+   Set the callback URL to `https://api.netlify.com/auth/done`.
+2. On Netlify: **Project configuration → Access & security → OAuth → Install
+   provider**, choose GitHub, and paste the Client ID and Secret. (Netlify
+   renamed "Site configuration" to "Project configuration"; older guides,
+   including Decap's, still say the former.)
+3. Anyone with write access to the repo can now sign in at `/admin` with
+   "Sign in with GitHub".
+
+**2. Personal access token (fine for a quick trial).** Choose "Sign In with
+Token" on the login screen and paste a GitHub token — the login screen links to
+a pre-scoped token page. The token is kept in the browser's local storage. Good
+for verifying the setup; not what you want to hand a non-technical author.
+
+A [Cloudflare Worker authenticator](https://github.com/sveltia/sveltia-cms-auth)
+is also supported via `backend.base_url`, and is the route to take if the site
+ever leaves Netlify.
+
+### Publishing behaviour
+
+Saving commits to **`publish`** — a branch that carries content and nothing
+else. Netlify builds it as a branch deploy, so the author writes, saves, and
+sees their work on that preview a few minutes later, without needing anybody's
+help and without it being live.
+
+Going live is a separate, deliberate act: merge `publish` into `main`.
+
+**Why not `beta` or `alpha`.** Those are integration branches — they hold code
+that is not released yet. Merging one of them to publish a blog post would
+release that code at the same time. `publish` is cut from `main` and only ever
+receives commits from the editor, so merging it back is a content-only diff.
+Content and code move at different speeds and on different authority: the
+client decides when a post is ready, you decide when code ships.
+
+There is no review step inside the editor by design — that step is what left
+two client-written posts sitting unmerged. The branch provides the "look before
+it ships" safety instead, without blocking the writing. If you do want review
+in the editor, add `publish_mode: editorial_workflow` to the `backend` block in
+`config.yml`; the CMS then opens a pull request per entry and grows a
+draft → in review → ready workflow, and somebody has to merge each one.
+
+#### Setting up the branch
+
+Not yet created — do this before handing `/admin` to anyone:
+
+```bash
+git fetch origin
+git checkout -B publish origin/main
+git push -u origin publish
+```
+
+Then in Netlify, add `publish` to the branches that get deploys (Site
+configuration → Build & deploy → Branch deploys) so the author has somewhere to
+preview.
+
+After each `publish` → `main` merge, re-cut the branch so it never drifts from
+production:
+
+```bash
+git checkout -B publish origin/main
+git push --force-with-lease
+```
 
 ## Screenshot tests
 
@@ -164,6 +268,7 @@ tests/visual/
   fixtures.mjs          Serves fonts offline, blocks all other network access
   stabilize.mjs         Waits out lazy images, webfonts and transitions
   fixtures/events.ics   The fixed calendar the homepage is built against
+  fixtures/content/     The fixed posts and recipes the blog is built against
   font-cache/           Captured Google Fonts responses (see below)
   __screenshots__/      The baselines, one directory per viewport
 ```
@@ -225,8 +330,20 @@ Two sources of drift are deliberately removed:
   so the `[PUBLIC]` filter and the recurring-event expansion are exercised on
   the way to the screenshot — see `tests/visual/fixtures/README.md` for what
   each entry covers.
-- **Build timezone.** Blog post dates render through `toDateString()`, which
-  follows the build machine's zone, so the test build pins `TZ=UTC`.
+- **Build timezone.** `formatDisplayDate` already renders post dates from UTC
+  parts, so this is belt and braces: the test build also pins `TZ=UTC` to catch
+  anything that reaches for the ambient zone later.
+- **Published content.** The blog and recipe indexes list real posts, so every
+  post the client publishes would change `posts-index`'s baseline and fail this
+  check on a commit that touched no code. The test build points
+  `CONTENT_FIXTURE_DIR` at `tests/visual/fixtures/content`, so posts and
+  recipes come from a fixture and these baselines move only when the layout
+  does. It also buys back coverage: `_posts/` and `_recipes/` are empty in the
+  repo, so without it the article and recipe layouts have no screenshots at
+  all.
+- **Draft content.** The test build sets `INCLUDE_DRAFT_CONTENT=false`, so a
+  scratch `test-*` draft in your working tree can't appear on the blog index
+  and fail the comparison on your machine but nowhere else.
 
 Adding a page under `pages/` without adding it to `routes.mjs` fails the
 "every exported route has a screenshot baseline" test, so nothing slips out of
@@ -245,6 +362,10 @@ Site-wide SEO is centralized:
 
 ## Branching & deployment
 
+Two tracks, meeting only at `main`.
+
+**Code** moves through integration:
+
 ```
 feature/*  →  alpha  →  beta  →  main
 ```
@@ -253,6 +374,20 @@ feature/*  →  alpha  →  beta  →  main
 - **`alpha`** — integration branch where features are merged and conflicts resolved
 - **`beta`** — client preview (Netlify deploy preview)
 - **`main`** — production (deploys to the live site)
+
+**Content** does not:
+
+```
+main  →  publish  →  main
+```
+
+- **`publish`** — cut from `main`, receives commits only from the editor at
+  `/admin`, and is merged back into `main` to go live. Re-cut from `main` after
+  each merge.
+
+Keeping them apart is the point: `publish` never carries unreleased code, so
+putting a blog post live cannot ship a half-finished feature with it, and a
+code release cannot be held up waiting on content.
 
 CI (GitHub Actions) runs lint, build, unit tests, and the screenshot tests on
 every push; a non-blocking `npm audit` reports advisories. Netlify builds with `npm ci && npm run build` and

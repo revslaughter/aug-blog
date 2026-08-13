@@ -8,11 +8,9 @@
  * guard test that fails if an exported route is missing from this list, so
  * nothing silently escapes visual coverage.
  *
- * The three detail routes below are the authoring templates and the recipe
- * fixture. Production does not build them (util/contentFiles.mjs), so they
- * exist here only because playwright.config.mjs sets INCLUDE_DRAFT_CONTENT
- * for the build behind these tests. They are the repo's only post and recipe,
- * so without them the blog and recipe layouts have no coverage at all.
+ * Posts and recipes come from tests/visual/fixtures/content, not from _posts/
+ * and _recipes/, so the entries below are fixture content and do not change
+ * when the client publishes. See tests/visual/fixtures/README.md.
  */
 export const ROUTES = [
   { name: "home", path: "/" },
@@ -25,9 +23,9 @@ export const ROUTES = [
   { name: "summer-faire", path: "/summer-faire" },
   { name: "workshops", path: "/workshops" },
   { name: "posts-index", path: "/posts" },
-  { name: "post-detail", path: "/posts/template" },
+  { name: "post-detail", path: "/posts/spring-plant-sale-is-open" },
+  { name: "post-detail-undated", path: "/posts/notes-from-the-compost-pile" },
   { name: "recipes-index", path: "/recipes" },
-  { name: "recipe-detail", path: "/recipes/template" },
-  { name: "recipe-detail-test", path: "/recipes/test" },
+  { name: "recipe-detail", path: "/recipes/roasted-roots-with-herb-oil" },
   { name: "not-found", path: "/404" },
 ];
