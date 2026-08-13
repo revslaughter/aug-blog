@@ -103,10 +103,22 @@ collections:
       # burying the editor under six settings fields makes the rarest task the
       # most prominent one. A field named `body` is the document body, below the
       # frontmatter.
+      #
+      # Both modes offered, rich text first. The rich-text surface edits a
+      # document tree rather than Markdown source, so pressing Enter there makes
+      # a paragraph — it has no way to express "a newline that is only
+      # whitespace", because that idea only exists in the source. Raw mode is
+      # where source line-wrapping is under your own control.
+      #
+      # Which matters because the rendering is CommonMark: a single newline is
+      # whitespace and a blank line starts a paragraph, so hard-wrapped source
+      # renders as flowing text. `util/processMarkdown.test.js` pins that.
       - label: Page text
         name: body
         widget: markdown
         required: false
+        modes: [rich_text, raw]
+        default_mode: rich_text
         hint: The main wording of the page.
       - label: Menu order
         name: order
@@ -198,7 +210,13 @@ collections:
         date_format: "YYYY-MM-DD"
         time_format: false
       # A field named `body` is the document body, below the frontmatter.
-      - { label: Post, name: body, widget: markdown, required: true }
+      # Both modes, as on the Pages collection — see the note there.
+      - label: Post
+        name: body
+        widget: markdown
+        required: true
+        modes: [rich_text, raw]
+        default_mode: rich_text
 
   - name: recipes
     label: Recipes
@@ -214,4 +232,9 @@ collections:
     fields:
       - { label: Title, name: title, widget: string, required: true }
       - { label: Author, name: author, widget: string, required: true }
-      - { label: Recipe, name: body, widget: markdown, required: true }
+      - label: Recipe
+        name: body
+        widget: markdown
+        required: true
+        modes: [rich_text, raw]
+        default_mode: rich_text
