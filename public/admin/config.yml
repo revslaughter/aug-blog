@@ -31,8 +31,11 @@ backend:
   # exists to remove. The branch gives the same "look before it ships" safety
   # without blocking the writing.
   #
-  # After `publish` is merged into main, re-cut it from main so it never drifts:
-  #   git checkout -B publish origin/main && git push --force-with-lease
+  # Keeping this branch in step with main is automated — sync-publish.yml
+  # merges main into it on every push to main, so the preview runs production
+  # code rather than whatever shipped last release. It merges rather than
+  # re-cutting and never force-pushes, so an entry saved here is safe even if a
+  # code change lands on main before it has been published.
   branch: publish
   commit_messages:
     create: "Add {{collection}} “{{slug}}”"

@@ -256,8 +256,29 @@ else. Netlify builds it as a branch deploy, so the author writes, saves, and
 sees their work on that preview a few minutes later, without needing anybody's
 help and without it being live.
 
-Going live is a separate, deliberate act: merge `publish` into `main`, then
-re-cut the branch so it never drifts from production:
+Going live is a separate, deliberate act: merge `publish` into `main`.
+
+Keeping `publish` current afterwards is automatic.
+`.github/workflows/sync-publish.yml` merges `main` into `publish` on every push
+to `main`, so the branch deploy always previews the client's writing on
+production code rather than on whatever shipped last release.
+
+It **merges** rather than re-cutting, and pushes without `--force`. When
+nothing is pending that is a fast-forward and the result is identical to a
+re-cut; when the client has unpublished work it becomes a merge commit and the
+work survives. Refusing to force is the safety mechanism: automating the
+re-cut below would delete a post saved at 10am when a code fix lands at 11am,
+silently, from the author's point of view.
+
+Merging `main` into `publish` does not weaken the guarantee below — `main` is
+released code. What `publish` must never carry is `alpha` or `beta`.
+
+The workflow fails, having pushed nothing, if the same content file was changed
+on both branches. Resolve that by hand; do not re-cut, which resolves it by
+discarding the author's side.
+
+Re-cutting is still the right move by hand — when you have looked at the branch
+and know it holds nothing you want:
 
 ```bash
 git fetch origin
@@ -494,7 +515,14 @@ fixing the advisories or dropping the check.
 
 Netlify builds with `npm ci && npm run build` and publishes `out/`.
 
-The two operational workflows are dispatchable from the **Actions** tab:
-**Daily content refresh** (rebuild for the calendar feed) and **Refresh
-screenshot baselines**. GitHub only offers `workflow_dispatch` for workflows
-that exist on the default branch, so both must stay on `main`.
+Three operational workflows sit alongside CI, all dispatchable from the
+**Actions** tab:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| Daily content refresh | 13:00 UTC daily | Fires the Netlify build hook so the calendar feed stays current |
+| Refresh screenshot baselines | Manual | Regenerates baselines in the pinned container and commits them to your branch |
+| Sync publish with main | Push to `main` | Merges `main` into `publish`, so the client's preview runs production code |
+
+GitHub only offers `workflow_dispatch` for workflows that exist on the default
+branch, so all three must stay on `main`.

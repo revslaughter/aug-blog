@@ -34,12 +34,7 @@ Nothing here can be done from a pull request. These are the only things
 standing between the client and publishing.
 
 - [X] **Create the `publish` branch** — exists, cut from `main` at `be76b73`.
-      Re-cut it from `main` after each merge back, so it never drifts.
-- [ ] **Re-cut `publish` from the promoted `main`.** It was cut at `be76b73`,
-      which the promotion leaves far behind — so its Netlify branch deploy
-      would preview the old site, which is the one thing that preview exists
-      to avoid. `git checkout -B publish origin/main && git push
-      --force-with-lease`, as after any merge back.
+      Keeping it in step with `main` is automated; see Done.
 - [ ] **Add a Netlify branch deploy for `publish`** so there is somewhere to preview
 - [ ] **Register a GitHub OAuth app** — callback `https://api.netlify.com/auth/done`
 - [ ] **Install it in Netlify** under Access & security → OAuth
@@ -154,6 +149,13 @@ workflow drifts from it.
 content-pipeline hardening, the screenshot tests, the About copy, the nav and
 the editor. `main` had been parked at `be76b73` while the work accumulated on
 `beta`.
+
+**`publish` stays in step with `main`** — `sync-publish.yml` merges `main` into
+`publish` on every push, so the client's branch deploy previews their writing on
+production code instead of drifting a release behind. It merges and never
+forces: pending content survives, and the re-cut chore is gone. Automating the
+re-cut instead would have deleted a post saved between a merge and the next code
+push.
 
 **`visual-baselines.yml` dispatchable** — GitHub only offers
 `workflow_dispatch` for workflows that exist on the default branch, and this

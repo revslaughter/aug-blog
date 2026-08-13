@@ -1,0 +1,99 @@
+name: Sync publish with main
+
+# Keeps `publish` carrying the same code as production.
+#
+# `publish` is cut from main and receives content commits from the editor at
+# /admin. Netlify builds it as a branch deploy, which is where the client
+# checks their writing before it goes live. That preview is only honest if the
+# branch is running current code — left alone, `publish` drifts a release
+# behind and shows the client their new post on the old site.
+#
+# This does NOT re-cut the branch. The documented manual procedure is
+# `git checkout -B publish origin/main && git push --force-with-lease`, which
+# is correct by hand — you look at the branch first — and destructive on a
+# timer: a post saved at 10am is gone when a code fix lands at 11am, silently,
+# from the author's point of view.
+#
+# So it merges instead, and pushes without --force:
+#
+#   - publish has nothing pending  ->  fast-forward, identical to a re-cut
+#   - publish has unpublished work ->  merge commit, the work survives, and
+#                                      the preview still gets current code
+#
+# Refusing to force is the whole safety mechanism. If anything reaches
+# `publish` while this runs, the push stops being a fast-forward and GitHub
+# rejects it — the failure mode is a retry, never a lost post.
+#
+# Merging main into publish does not weaken "publish never carries unreleased
+# code": main *is* released code. What publish must never carry is alpha/beta.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Two pushes to main in quick succession would otherwise race to move the same
+# branch, and the loser fails for no useful reason.
+concurrency:
+  group: sync-publish
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge main into publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history: the merge needs a merge base, which a shallow clone
+          # does not have.
+          fetch-depth: 0
+
+      - name: Merge and push
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git show-ref --verify --quiet refs/remotes/origin/publish; then
+            echo "No publish branch — creating it from main."
+            git push origin "origin/main:refs/heads/publish"
+            exit 0
+          fi
+
+          # The editor can commit to publish at any moment, including between
+          # the fetch below and the push. That loses the race rather than the
+          # content, so just start over: three attempts covers a collision
+          # without turning a genuine problem into an infinite retry.
+          for attempt in 1 2 3; do
+            git fetch --quiet origin main publish
+            git checkout --quiet -B publish origin/publish
+
+            if git merge --ff-only origin/main 2>/dev/null; then
+              echo "Fast-forwarded publish to main; nothing was pending."
+            elif git merge --no-edit -m "Merge main into publish" origin/main; then
+              echo "publish had unpublished content — merged main into it."
+            else
+              git merge --abort || true
+              echo "::error::Merging main into publish conflicts. This means the" \
+                   "same content file was changed on both branches — resolve it" \
+                   "by hand, and do not re-cut publish, which would discard the" \
+                   "author's side of the conflict."
+              exit 1
+            fi
+
+            if git push origin publish; then
+              echo "publish is in step with main."
+              exit 0
+            fi
+
+            echo "publish moved while we were working (attempt ${attempt}/3); retrying."
+          done
+
+          echo "::error::Could not update publish after 3 attempts. Nothing was" \
+               "lost — the pushes were rejected, not forced. Re-run this workflow."
+          exit 1
