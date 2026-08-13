@@ -1,0 +1,82 @@
+# Sveltia CMS configuration. Read automatically from beside admin/index.html.
+#
+# This is the authoring interface: it writes Markdown into _posts/ and
+# _recipes/ and commits to the repo, so content still lives in git and the
+# site build is unchanged. The point is that nobody has to know that — the
+# editor generates the filename, enforces the frontmatter, and commits, which
+# is where hand-authoring through the GitHub web UI kept going wrong.
+#
+# The format is Netlify/Decap CMS's, which Sveltia is compatible with.
+
+backend:
+  name: github
+  repo: revslaughter/aug-blog
+  # Publishes straight to production. There is no review step: saving here
+  # commits to main, Netlify rebuilds, and the post is live in a few minutes.
+  #
+  # To route posts through review instead, add `publish_mode: editorial_workflow`
+  # below — the CMS then opens a pull request per entry and the editor grows a
+  # draft/in-review/ready workflow. That reinstates a person in the loop, which
+  # is the bottleneck this setup exists to remove, so it is off by default.
+  branch: main
+  commit_messages:
+    create: "Add {{collection}} “{{slug}}”"
+    update: "Update {{collection}} “{{slug}}”"
+    delete: "Delete {{collection}} “{{slug}}”"
+    uploadMedia: "Upload “{{path}}”"
+    deleteMedia: "Delete “{{path}}”"
+
+# Uploaded images are committed to the repo like any other content.
+# media_folder is where they land on disk; public_folder is the URL they are
+# referenced by, which is what gets written into the Markdown.
+media_folder: public/uploads
+public_folder: /uploads
+
+collections:
+  - name: posts
+    label: Blog posts
+    label_singular: Blog post
+    description: >-
+      Posts appear on the blog at /posts, newest first. Publishing takes a few
+      minutes while the site rebuilds.
+    folder: _posts
+    create: true
+    # Derived from the title, so filenames are always URL-safe. This is the
+    # setting that prevents "_posts/Hello world" — a filename with a space and
+    # no extension, which used to fail the build outright.
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}} — {{pubdate}}"
+    sortable_fields: [pubdate, title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      # Written as a bare YYYY-MM-DD date, which is what the loader and the
+      # sitemap generator expect. They tolerate other shapes now, but there is
+      # no reason to emit one.
+      - label: Publish date
+        name: pubdate
+        widget: datetime
+        required: true
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
+        time_format: false
+      # A field named `body` is the document body, below the frontmatter.
+      - { label: Post, name: body, widget: markdown, required: true }
+
+  - name: recipes
+    label: Recipes
+    label_singular: Recipe
+    description: Recipes appear at /recipes.
+    folder: _recipes
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}"
+    sortable_fields: [title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      - { label: Recipe, name: body, widget: markdown, required: true }

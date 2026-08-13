@@ -95,6 +95,9 @@ We are experimenting to find the right cadence.
 
 ## Writing a blog post
 
+**The normal way is the editor at [`/admin`](#the-editor-admin).** Everything
+below describes what it writes, and is the fallback for editing by hand.
+
 Copy `_posts/template.md`, rename it to your post's slug (e.g.
 `spring-plant-sale.md`), and fill in the frontmatter:
 
@@ -139,6 +142,74 @@ preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
 
 Files named `test-*` are gitignored scratch drafts, and are treated as drafts
 by the same rule.
+
+## The editor (`/admin`)
+
+[Sveltia CMS](https://sveltiacms.app) runs at `/admin` on the deployed site. It
+is a writing interface over this repo: entries are saved as Markdown in
+`_posts/` and `_recipes/`, committed to `main`, and published by the normal
+Netlify build. Content stays in git — the CMS is a front end onto it, not a
+separate store, so it can be removed at any time and every post remains a file
+in this repo.
+
+It exists because publishing by hand meant a GitHub account, a branch, a pull
+request, an exact filename, and correct YAML. The editor generates the
+filename, enforces the fields, and commits.
+
+**Setup is two files** — `public/admin/index.html` and
+`public/admin/config.yml`. There is no dependency, no build step, and nothing
+in `package.json`; the CMS is a single-page app loaded from a CDN.
+
+### Signing in
+
+Sveltia needs a way to authenticate against GitHub. Two options, in order of
+preference:
+
+**1. GitHub OAuth through Netlify (recommended for the client).** Netlify hosts
+the OAuth flow, so there is nothing to deploy and no change to `config.yml`.
+
+1. On GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
+   Set the callback URL to `https://api.netlify.com/auth/done`.
+2. On Netlify: **Site configuration → Access & security → OAuth → Install
+   provider**, choose GitHub, and paste the Client ID and Secret.
+3. Anyone with write access to the repo can now sign in at `/admin` with
+   "Sign in with GitHub".
+
+**2. Personal access token (fine for a quick trial).** Choose "Sign In with
+Token" on the login screen and paste a GitHub token — the login screen links to
+a pre-scoped token page. The token is kept in the browser's local storage. Good
+for verifying the setup; not what you want to hand a non-technical author.
+
+A [Cloudflare Worker authenticator](https://github.com/sveltia/sveltia-cms-auth)
+is also supported via `backend.base_url`, and is the route to take if the site
+ever leaves Netlify.
+
+### Publishing behaviour
+
+Saving commits straight to `main`, so a post is live within a few minutes and
+the author needs nobody's help. There is no review step by design — the review
+step is what left two client-written posts sitting unmerged.
+
+To reinstate one, add `publish_mode: editorial_workflow` to the `backend`
+block in `config.yml`. The CMS then opens a pull request per entry and grows a
+draft → in review → ready workflow, and somebody has to merge.
+
+### Known rough edge
+
+The authoring templates are real files in `_posts/` and `_recipes/`, so they
+appear in the editor's entry list as "Put Your Title Here" and "Real Basic
+Spaghettorinno". They are not published (see [Draft content](#draft-content)),
+but an author can open and edit one, and nothing will appear on the site when
+they do.
+
+Neither Sveltia nor Decap can exclude entries by filename, so the fix is a
+choice, not a setting:
+
+- **Leave it.** The templates double as worked examples in the editor.
+- **Delete them** once there is a real post and a real recipe to render in
+  their place, and add a detail route back to `tests/visual/routes.mjs`.
+- **Move them** out of the content folders, accepting that `npm run dev` and
+  the screenshot tests then have no post or recipe to render.
 
 ## Screenshot tests
 

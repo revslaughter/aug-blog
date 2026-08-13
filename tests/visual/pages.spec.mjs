@@ -44,9 +44,16 @@ test("every exported route has a screenshot baseline", async ({}, testInfo) => {
   const covered = new Set(ROUTES.map((route) => route.path));
   const exported = [];
 
+  // Static assets copied out of public/ that are not pages of the site.
+  // /admin is the Sveltia CMS editor: a third-party single-page app loaded
+  // from a CDN, so its markup is neither ours to review nor stable enough to
+  // hold a pixel baseline against.
+  const NOT_A_PAGE = new Set(["admin"]);
+
   const walk = (dir, prefix) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith("_")) continue; // _next build assets
+      if (prefix === "" && NOT_A_PAGE.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full, `${prefix}/${entry.name}`);
