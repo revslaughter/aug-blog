@@ -50,7 +50,8 @@ components/         Layout, header/footer, RecentPosts, Seo, StructuredData
 util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
 _posts/            Blog posts (Markdown + frontmatter), written via /admin
 _recipes/          Recipes, same shape as posts but undated
-public/            Static assets (logo, favicon, robots.txt)
+docs/              Client-facing guide to the editor
+public/            Static assets (logo, favicon, robots.txt); admin/ is the CMS
 scripts/           Build-time sitemap generator, static server + font cache for tests
 styles/            CSS modules + globals
 tests/visual/      Playwright screenshot tests and their committed baselines
@@ -161,6 +162,12 @@ remains a file in this repo.
 It exists because publishing by hand meant a GitHub account, a branch, a pull
 request, an exact filename, and correct YAML. The editor generates the
 filename, enforces the fields, and commits.
+
+`docs/writing-for-the-website.md` is the guide to hand the client. It is a
+scaffold — it has `[FILL IN]` placeholders for the URLs, which do not exist
+until `/admin` is deployed and `publish` has a branch deploy — and it should be
+checked against the editor once sign-in works. Keep it in step with
+`config.yml`: if the fields change, the guide changes.
 
 **Setup is two files** — `public/admin/index.html` and
 `public/admin/config.yml`. There is no dependency, no build step, and nothing

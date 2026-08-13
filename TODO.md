@@ -1,212 +1,131 @@
-# Antioch Urban Growers — Development Roadmap
+# Antioch Urban Growers — Roadmap
 
-## Overview
-Preparing the site for expanded functionality: events page, blog, SEO/social media, and general content pages. Using feature branches with alpha (integration) and beta (preview) branches.
+Where the project actually stands, and what is left.
+
+Last reviewed: 2026-08-13.
 
 ---
 
-## Branching Strategy
+## Branching
+
+Two tracks, meeting only at `main`.
 
 ```
-main (production)
-  ↑
-  ├─ beta (Netlify preview for client)
-  │   ↑
-  │   └─ alpha (integration branch, conflict resolution)
-  │       ↑
-  │       ├─ feature/seo
-  │       └─ feature/security
+code:     feature/*  →  alpha  →  beta  →  main
+content:                        main  →  publish  →  main
 ```
 
-- **feature/seo**: SEO enhancements (meta tags, sitemap, Open Graph, schema)
-- **feature/security**: Dependency updates + security vulnerability fixes
-- **alpha**: Merge features here, resolve conflicts, test integration
-- **beta**: Deploy to Netlify for client preview
-- **main**: Production
+- **`feature/*`** — individual pieces of work
+- **`alpha`** — integration; features merge here first
+- **`beta`** — client preview of *code*
+- **`main`** — production
+- **`publish`** — content only, written by the CMS at `/admin`, merged back to
+  `main` to go live, then re-cut from `main`
+
+Keeping content off the integration branches means publishing a post cannot
+ship a half-finished feature, and a code release cannot be held up waiting on
+content.
+
+> In practice most code has gone straight to `main` via PR rather than through
+> `alpha` → `beta`. Worth deciding: adopt the documented flow, or simplify the
+> documentation to match what happens.
 
 ---
 
-## Phase 1: CI/CD Setup (PRIORITY)
+## Blocked on setup outside the repo
 
-### GitHub Actions Workflow
-- [ ] Create `.github/workflows/build.yml`
-  - Run on: `push` to `feature/*`, `alpha`, `beta`, `main`
-  - Jobs:
-    - Lint (ESLint)
-    - Type check (if applicable)
-    - Build (next build)
-    - Security audit (npm audit)
-- [ ] Add branch protection rules
-  - Require passing checks before merge to `main`
-  - Require passing checks before merge to `alpha`
-- [ ] Add status badges to README
+Nothing here can be done from a pull request. These are the only things
+standing between the client and publishing.
 
-### Netlify Deployment
-- [ ] Update `netlify.toml`:
-  - Build command: `npm install && npm run build`
-  - Publish directory: `.next` (confirm static export still works)
-  - Environment: Node 18+
-- [ ] Configure deploy previews:
-  - Deploy previews from: `beta` branch (for client testing)
-  - Production deploys from: `main` branch
-- [ ] Add deploy status notifications (optional)
+- [ ] **Create the `publish` branch** — `git checkout -B publish origin/main && git push -u origin publish`
+- [ ] **Add a Netlify branch deploy for `publish`** so there is somewhere to preview
+- [ ] **Register a GitHub OAuth app** — callback `https://api.netlify.com/auth/done`
+- [ ] **Install it in Netlify** under Access & security → OAuth
+- [ ] **Sign in to `/admin` and publish a test post end to end**, then delete it
+- [ ] **Fill in `docs/writing-for-the-website.md`** and walk the client through
+      the first post in person rather than sending it cold
 
-### Local Setup
-- [ ] Document dev environment setup in CLAUDE.md or README
-  - `npm install`
-  - `npm run dev` → http://localhost:3000
-  - `npm run build && npm run export` → static export to `out/`
+See the README's "The editor (`/admin`)" section for the detail.
 
 ---
 
-## Phase 2: Security Updates (`feature/security`)
+## Now
 
-### Dependencies Update
-- [ ] Run `npm audit fix --force` OR staged updates:
-  - [ ] Next.js 12 → 14 → 16
-  - [ ] React 17 → 18 → 19
-  - [ ] ESLint 8 → 10
-- [ ] Update `next.config.js` for Next.js 16+ compatibility
-  - [ ] Check image loader config
-  - [ ] Remove deprecated options
-- [ ] Update ESLint config (`.eslintrc.json`) for new version
-- [ ] Test build: `npm run build`
-- [ ] Test dev server: `npm run dev`
-- [ ] Commit and PR to `alpha`
+- [ ] **Program page copy.** Six pages — plant sale, produce sale, summer
+      faire, workshops, mindful movement, compost — still carry placeholder
+      text, which is why they are not in the nav. Needs the client.
+- [ ] **About page copy** (PR #35). The client wrote good copy in August; it is
+      carried across but the PR is not merged.
+- [ ] **Get `alpha` onto `main`.** Everything since June sits on `alpha`:
+      hardening, screenshot tests, the CMS. `beta` and `main` are still at
+      `be76b73`.
 
-### Current Vulnerabilities (18 total)
-- 1 CRITICAL: Next.js image optimization (DoS, auth bypass)
-- 9 moderate: js-yaml, postcss, nanoid, diff
-- 1 low
+## Next
 
----
+- [ ] **`visual-baselines.yml` cannot be dispatched.** GitHub only runs
+      `workflow_dispatch` workflows that exist on the default branch, and it is
+      on `alpha` only. Lands with the merge above; worth confirming afterwards,
+      because it is the documented way to refresh baselines.
+- [ ] **Nav.** Currently Home / About / Contact. Add the program pages as their
+      copy lands, and `/posts` and `/recipes` once there is content.
+- [ ] **Embeds in posts.** Video, maps and Facebook posts do not work: post
+      bodies go through `dangerouslySetInnerHTML` and are only safe because
+      remark-html drops raw HTML. Add embeds as a constrained component — a
+      shortcode or a CMS widget — rather than by enabling raw HTML, which would
+      open a real XSS hole. `util/processMarkdown.test.js` fails if anyone does.
+- [ ] **Open event-feed bugs.** #30 all-day events display a day early, #31
+      `windowDays` only bounds recurring events, #26 line breaks from Google
+      Calendar.
+- [ ] **#21** vine divider not rendering. **#12** QR code. **#5** favicon.
+- [ ] **Close the issues that are already done.** #16, #17, #25 and #28 are
+      shipped but still open, so the issue list overstates what is outstanding.
+      Verified in the code, not just assumed — but worth a glance before
+      closing.
 
-## Phase 3: SEO Implementation (`feature/seo`)
+## Later
 
-### Meta Tags & Head Setup
-- [ ] Install/use `next/head` (already in Next.js)
-- [ ] Create shared `Head` component with defaults (title, description, og:image, etc.)
-- [ ] Add to all pages:
-  - [ ] `pages/index.js` — homepage
-  - [ ] `pages/about.js` — about
-  - [ ] `pages/contact.js` — contact (ALSO needs Layout wrapper fix)
-  - [ ] `pages/posts/index.js` — blog index
-  - [ ] `pages/posts/[slug].js` — individual blog posts
-- [ ] Add OpenGraph tags (og:title, og:description, og:image, og:url)
-- [ ] Add Twitter card meta tags
-
-### Sitemap & Robots
-- [ ] Create `public/sitemap.xml` with:
-  - Homepage
-  - Static pages (about, contact, blog)
-  - Dynamic blog post URLs
-- [ ] Create `public/robots.txt`
-  - Allow: /
-  - Sitemap: https://www.antiochurbangrowers.com/sitemap.xml
-
-### Structured Data
-- [ ] Add Organization schema (homepage JSON-LD)
-  - Name, description, location, phone, social profiles
-- [ ] Add LocalBusiness schema
-- [ ] Optional: Event schema (when events page is added)
-
-### Image Optimization
-- [ ] Review `next.config.js` image loader
-- [ ] Ensure images have descriptive alt text
-- [ ] Optimize images (size, format)
-
-### Content & Keywords
-- [ ] Review page titles & descriptions (SEO optimized)
-- [ ] Update About page (currently minimal)
-- [ ] Update Contact page layout + SEO
-- [ ] Add meta descriptions to all pages
-
-### Testing
-- [ ] Validate with: [Google Search Central](https://search.google.com/search-console)
-- [ ] Check Open Graph tags: [Meta Debugger](https://developers.facebook.com/tools/debug/)
-- [ ] Validate schema: [Schema.org Validator](https://validator.schema.org/)
-
-### Commit and PR to `alpha`
+- [ ] **Same-day events.** The calendar rebuild runs daily, so an event added
+      this afternoon appears tomorrow morning. Only a publish-time build hook
+      fixes that properly; the manual workflow run is the current answer.
+- [ ] **#32 — Security Audit is permanently red.** Non-blocking
+      (`continue-on-error`), but a check that is always red trains people to
+      ignore checks. Either fix the advisories or stop running it.
+- [ ] **#22** — documentation pass over inline comments.
+- [ ] **Analytics.** Nothing is measuring whether any of the SEO work landed.
+- [ ] **Submit the sitemap to Google Search Console** once `main` is current.
 
 ---
 
-## Phase 4: Feature Development (after CI/CD + Security + SEO)
+## Done
 
-### Blog Enhancement
-- [ ] Ensure blog post frontmatter is standardized (title, date, author, excerpt, etc.)
-- [ ] Add post listing page (`pages/posts/index.js`) with filtering/search
-- [ ] Add "Recent Posts" component to homepage
+Kept short; the detail is in the git history.
 
-### Events Page
-- [ ] Create `pages/events.js`
-- [ ] Decide on data source: markdown files, hardcoded, or CMS
-- [ ] Design layout (list, calendar, or upcoming)
-- [ ] Add to navigation
+**Stack and CI** — Next 16, React 19, ESLint 9 flat config, Node 22, true
+static export. GitHub Actions runs lint, build, unit tests and screenshots on
+every push. Netlify builds `npm ci && npm run build` and publishes `out/`.
 
-### Pages Enhancement
-- [ ] Improve About page (add more content, mission, team)
-- [ ] Improve Contact page (form? or keep as info listing?)
-- [ ] Add navigation header (commented out in `components/layout.js`)
+**SEO** — meta/OG/Twitter tags, canonical URLs, `LocalBusiness` JSON-LD,
+generated sitemap, robots.txt. `util/siteMeta.js` is the single source of truth
+and is now actually used, rather than being contradicted by hardcoded copies in
+`index.js` and `contact.js` (the cause of issue #9).
 
----
+**Events** — homepage feed from a public Google Calendar, baked in at build
+time, `[PUBLIC]`-prefix filter (#17), recurring-event expansion, detail modal
+(#28), truncation and linkifying (#25). Rebuilt daily by
+`.github/workflows/daily-refresh.yml`.
 
-## Phase 5: Launch & Monitoring
+**Recipes** (#16) — `/recipes` and `/recipes/[meal]`.
 
-### Pre-Launch Checklist
-- [ ] All features tested on beta (preview)
-- [ ] Client approval on beta
-- [ ] Final review for broken links, typos, images
-- [ ] Backup current production
+**Content pipeline hardening** (#36) — authoring can no longer break the build.
+Non-Markdown files are ignored instead of throwing `ENOENT`; `pubdate` accepts
+a bare, quoted or written-out date and a post with none still publishes;
+display dates render from UTC so they no longer depend on who ran the build;
+publishability is defined once and shared by the loaders and the sitemap
+generator, so templates cannot ship as pages again. 72 unit tests, up from 6.
 
-### Deployment
-- [ ] Merge beta → main
-- [ ] Verify production deployment
-- [ ] Smoke test production site
+**Screenshot tests** — every page at four viewports against committed
+baselines, built against fixture calendar *and* fixture content so neither a
+passing day nor a published post can turn the check red.
 
-### Post-Launch
-- [ ] Submit sitemap to Google Search Console
-- [ ] Monitor analytics
-- [ ] Check for build/deployment errors
-
----
-
-## Notes
-
-**Current Status:**
-- Dependencies: current (Next.js 16, React 19, ESLint 9, Node 22)
-- Security: `npm audit --audit-level=high` runs in CI and is non-blocking; see
-  issue #32 for why it is permanently red
-- SEO: shipped — meta/OG/Twitter tags, canonical URLs, JSON-LD, generated
-  sitemap, robots.txt
-- Events: homepage feed from a public Google Calendar, baked in at build time
-  and refreshed daily by `.github/workflows/daily-refresh.yml`
-- Tests: Jest for units, Playwright screenshot diffing across four viewports
-- Branches: `alpha` and `beta` exist, but work has largely gone straight to
-  `main` via PR. Either adopt the documented flow or simplify it to match
-  what actually happens.
-
-**Client Requirements (from meetings):**
-- Events page
-- Blog enhancements
-- SEO / social media exposure
-- General pages (contact/about improvements)
-
-**Tech Debt:**
-- Sveltia CMS at `/admin` is the authoring interface, writing to `publish`.
-  Two things are still outstanding before anyone can use it, both outside the
-  repo and both covered in the README:
-  - the `publish` branch does not exist yet — cut it from `main` and add a
-    Netlify branch deploy for it
-  - a GitHub OAuth app needs registering and installing in Netlify; until then
-    only token sign-in works
-- Publishing no longer touches the screenshot baselines: the visual tests build
-  against `tests/visual/fixtures/content` rather than `_posts/` and
-  `_recipes/`, so a new post cannot turn the Screenshots check red.
-- Nav lists only Home/About/Contact. The six program pages still have
-  placeholder copy, and `/posts` and `/recipes` have no content yet.
-- `_posts/` and `_recipes/` are empty, so both indexes render an empty state on
-  the live site until the client publishes something.
-- Post bodies go through `dangerouslySetInnerHTML`; safe because remark-html
-  drops raw HTML, which is also why embeds (video, maps) do not work. Add
-  embeds as a constrained component rather than by enabling raw HTML.
-- Image loader config may need review after Next.js update
+**The editor** (#37) — Sveltia CMS at `/admin`, writing Markdown to `publish`.
+Content stays in git; no dependency, no build step, no recurring cost.
