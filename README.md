@@ -69,7 +69,7 @@ Setup:
 1. In Google Calendar, go to the calendar's **Settings and sharing** >
    **Integrate calendar**, and copy the **Secret address in iCal format**.
 2. Set it as the `GOOGLE_CALENDAR_ICS_URL` environment variable in Netlify
-   (Site configuration > Environment variables) and in your local `.env.local`
+   (Project configuration > Environment variables) and in your local `.env.local`
    for `npm run dev`.
 3. If the calendar has no events, or the env var is unset, or the fetch
    fails, the homepage simply omits the events section — a bad calendar feed
@@ -183,8 +183,10 @@ the OAuth flow, so there is nothing to deploy and no change to `config.yml`.
 
 1. On GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
    Set the callback URL to `https://api.netlify.com/auth/done`.
-2. On Netlify: **Site configuration → Access & security → OAuth → Install
-   provider**, choose GitHub, and paste the Client ID and Secret.
+2. On Netlify: **Project configuration → Access & security → OAuth → Install
+   provider**, choose GitHub, and paste the Client ID and Secret. (Netlify
+   renamed "Site configuration" to "Project configuration"; older guides,
+   including Decap's, still say the former.)
 3. Anyone with write access to the repo can now sign in at `/admin` with
    "Sign in with GitHub".
 
