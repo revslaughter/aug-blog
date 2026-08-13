@@ -54,11 +54,10 @@ See the README's "The editor (`/admin`)" section for the detail.
 - [ ] **Program page copy.** Six pages — plant sale, produce sale, summer
       faire, workshops, mindful movement, compost — still carry placeholder
       text, which is why they are not in the nav. Needs the client.
-- [ ] **About page copy** (PR #35). The client wrote good copy in August; it is
-      carried across but the PR is not merged.
-- [ ] **Get `alpha` onto `main`.** Everything since June sits on `alpha`:
-      hardening, screenshot tests, the CMS. `beta` and `main` are still at
-      `be76b73`.
+- [ ] **Promote `alpha` through `beta` to `main`.** Everything since June sits
+      on `alpha` — hardening, screenshot tests, the About copy and the nav.
+      `beta` and `main` are both still at `be76b73`; PR #38 is the promotion to
+      `beta`. Until that lands, none of it is on the live site.
 
 ## Next
 
@@ -125,7 +124,11 @@ generator, so templates cannot ship as pages again. 72 unit tests, up from 6.
 
 **Screenshot tests** — every page at four viewports against committed
 baselines, built against fixture calendar *and* fixture content so neither a
-passing day nor a published post can turn the check red.
+passing day nor a published post can turn the check red. The tolerance is 0.1%,
+set from a measured zero-pixel noise floor rather than by feel (#35).
+
+**About copy and nav** (#35) — the client's own About text is on the page, and
+Home / About / Contact are reachable by people rather than only by crawlers.
 
 **The editor** (#37) — Sveltia CMS at `/admin`, writing Markdown to `publish`.
 Content stays in git; no dependency, no build step, no recurring cost.
