@@ -33,8 +33,10 @@ npm run dev        # dev server at http://localhost:3000
 | `npm run lint`   | Run ESLint                                                          |
 | `npm test`       | Run the Jest test suite                                             |
 | `npm run test:visual` | Build the site and compare every page against its screenshot baselines |
-| `npm run test:visual:update` | Rewrite the baselines from the current build                 |
+| `npm run test:visual:update` | Rewrite the baselines from the current build — **only correct inside the pinned container**; use `npm run baseline` |
 | `npm run test:visual:report` | Open the last screenshot run's HTML report (diffs included)  |
+| `npm run baseline` | Regenerate the baselines in the pinned Playwright container, from any host |
+| `npm run baseline:check` | Run the screenshot comparison in that container without rewriting anything |
 
 Both `npm run dev` and `npm run build` run `npm run generate` first (via
 `predev`/`prebuild`), which regenerates two build artefacts — neither is
@@ -335,14 +337,47 @@ broke." Look at the diff in the report first. If the new rendering is what you
 wanted, regenerate the baselines and commit them as part of the same change,
 so the diff of the PR shows the visual change alongside the CSS that caused it.
 
-**Regenerate in CI, not locally.** Pixel comparison is only meaningful when the
+**Never regenerate on the host.** Pixel comparison is only meaningful when the
 renderer is identical, and a Mac renders text differently from the Linux
-container CI uses. Go to **Actions → Refresh screenshot baselines → Run
-workflow**, pick your branch, say why, and it pushes the updated PNGs to that
-branch. `npm run test:visual:update` is the same operation for anyone already
-working inside `mcr.microsoft.com/playwright:v1.56.1-noble` — the image pinned
-in both workflows, which must stay in step with the `@playwright/test` version
-in `package.json`.
+container CI uses. The trap is that `--update-snapshots` rewrites *every*
+baseline that differs, not only the ones you meant to change — so rebaselining
+six pages on a Mac also silently rewrites pages you never touched, and CI goes
+red on all of them. Measured on this repo: `/404` renders 1037 pixels different
+outside the image, on a page nothing had touched.
+
+Two ways to do it correctly.
+
+**Locally, through Docker** — the everyday route:
+
+```bash
+npm run baseline          # regenerate baselines in the pinned container
+npm run baseline:check    # run the comparison there, without rewriting anything
+```
+
+`scripts/visual-container.mjs` mounts the working tree into
+`mcr.microsoft.com/playwright:v1.56.1-noble` and runs `test:visual:update`
+inside it, so the host OS stops mattering. It masks `node_modules` with a
+container-only volume, so the Linux install does not overwrite your native
+binaries and break `npm run dev`; caches npm downloads in a named volume so
+repeat runs are quick; and hands ownership back on Linux, where the container
+would otherwise leave root-owned PNGs. Extra arguments pass through —
+`npm run baseline:check -- --project=desktop`. Set `VISUAL_CONTAINER_PRINT=1`
+to print the `docker run` command instead of executing it.
+
+Run `npm run baseline:check` before pushing and confirm it is green, then check
+`git status`: only the pages you actually changed should appear. Anything else
+in that diff means the renderer disagreed and is worth stopping for.
+
+**In CI** — when Docker is not available: **Actions → Refresh screenshot
+baselines → Run workflow**, pick your branch, say why, and it pushes the updated
+PNGs to that branch. Note that GitHub only offers `workflow_dispatch` workflows
+that exist on the **default branch**, so this is unavailable while
+`visual-baselines.yml` lives on `alpha` only.
+
+The image tag is derived from the installed `@playwright/test` rather than
+written into the script, and `util/playwrightImage.test.js` fails if either
+workflow drifts from it — so bumping the dependency without updating the
+workflows is caught by `npm test` rather than by a confusing rebaseline later.
 
 ### What makes the screenshots reproducible
 
