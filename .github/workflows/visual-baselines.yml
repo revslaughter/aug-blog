@@ -1,0 +1,54 @@
+name: Refresh screenshot baselines
+
+# When a design change is intentional, the screenshot baselines have to be
+# regenerated — but only baselines produced by the same renderer CI compares
+# against are any use, so this does it in CI rather than on a laptop.
+#
+# Run it from the Actions tab, pick the branch, and it pushes a commit with the
+# updated PNGs onto that branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why the baselines are changing (goes in the commit message)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Regenerate and commit
+    runs-on: ubuntu-latest
+    # Must match the image used by the `visual` job in ci.yml.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+      - run: npm ci
+      - run: npm run test:visual:update
+      - name: Commit updated baselines
+        env:
+          REASON: ${{ inputs.reason }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/visual/__screenshots__
+          if git diff --cached --quiet; then
+            echo "Baselines already up to date; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Refresh screenshot baselines" -m "$REASON"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Upload regenerated baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-baselines
+          path: tests/visual/__screenshots__/
+          retention-days: 14

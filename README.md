@@ -12,6 +12,7 @@ to Netlify.
 - **Markdown blog** — posts live in `_posts/`, parsed with `gray-matter` and
   rendered with `remark`
 - **ESLint 9** (flat config) + **Jest** / React Testing Library
+- **Playwright** screenshot tests across four viewports
 - **Node 22** (pinned via `.nvmrc`)
 
 ## Getting started
@@ -30,6 +31,9 @@ npm run dev        # dev server at http://localhost:3000
 | `npm run build`  | Generate the sitemap, then build the static export into `out/`      |
 | `npm run lint`   | Run ESLint                                                          |
 | `npm test`       | Run the Jest test suite                                             |
+| `npm run test:visual` | Build the site and compare every page against its screenshot baselines |
+| `npm run test:visual:update` | Rewrite the baselines from the current build                 |
+| `npm run test:visual:report` | Open the last screenshot run's HTML report (diffs included)  |
 
 `npm run build` runs `scripts/generate-sitemap.mjs` first (via `prebuild`) to
 regenerate `public/sitemap.xml` from the static routes and published posts.
@@ -46,8 +50,9 @@ components/         Layout, header/footer, RecentPosts, Seo, StructuredData
 util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
 _posts/            Blog posts (Markdown + frontmatter); template.md is the starter
 public/            Static assets (logo, favicon, robots.txt)
-scripts/           Build-time sitemap generator
+scripts/           Build-time sitemap generator, static server + font cache for tests
 styles/            CSS modules + globals
+tests/visual/      Playwright screenshot tests and their committed baselines
 ```
 
 ## Upcoming events (Google Calendar)
@@ -67,6 +72,13 @@ Setup:
 3. If the calendar has no events, or the env var is unset, or the fetch
    fails, the homepage simply omits the events section — a bad calendar feed
    can never break the build.
+
+`getUpcomingEvents` takes the calendar and the clock as arguments and reads no
+globals; `calendarOptionsFromEnv` is the single place that turns environment
+variables into those arguments. Two more it understands — `CALENDAR_FIXTURE_ICS`
+(a local `.ics` path, which wins over the live feed) and `CALENDAR_NOW` (freezes
+the start of the "upcoming" window) — exist so the screenshot tests can build
+against a fixed calendar. Leave both unset in Netlify.
 
 **Publishing an event:** only events whose title starts with `[PUBLIC]` are
 shown on the site — everything else on the calendar stays private. Just
@@ -97,8 +109,128 @@ Post body in Markdown…
 ```
 
 The post is picked up automatically — it appears on the blog, gets its own page
-at `/posts/<slug>`, and is added to the sitemap on the next build. Files named
-`test-*` are gitignored scratch drafts.
+at `/posts/<slug>`, and is added to the sitemap on the next build.
+
+`pubdate` is forgiving: a bare date (`2026-06-25`), a quoted one
+(`"2026-06-25"`), or one written out (`June 25, 2026`) all work, and a post
+with no date still publishes — it just sorts last and shows no date. Nothing
+you can type in frontmatter will fail the build.
+
+### Draft content
+
+`_posts/template.md`, `_recipes/template.md` and `_recipes/test.md` stay in the
+repo but are **never deployed**. They are what `npm run dev` and the screenshot
+tests render — without them the blog and recipe layouts would have no example
+page and no visual coverage — but the live site does not serve them.
+
+The switch is `INCLUDE_DRAFT_CONTENT`, defined in `util/contentFiles.mjs`:
+
+| Where | Drafts built? | How |
+| ----- | ------------- | --- |
+| `npm run dev` | yes | `NODE_ENV=development` |
+| `npm run test:visual` | yes | set in `playwright.config.mjs` |
+| `npm run build` locally | no | matches what deploys |
+| Netlify (all contexts) | no | pinned in `netlify.toml` |
+
+It fails closed: anything that isn't an explicit opt-in leaves drafts out, so a
+misconfigured environment under-publishes rather than leaking a template to the
+live site. To preview a production build locally, just `npm run build` — to
+preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
+
+Files named `test-*` are gitignored scratch drafts, and are treated as drafts
+by the same rule.
+
+## Screenshot tests
+
+Every page is captured at four viewports and compared, pixel by pixel, against
+a committed baseline image. A page fails if **more than 0.1% of its pixels
+changed**. This is the safety net for CSS edits: a tweak to `globals.css` that
+quietly breaks the recipe pages on mobile shows up as a failing check rather
+than a client email.
+
+That threshold is deliberately tight, and it is set from measurement — the
+reasoning is in `playwright.config.mjs`. The short version: baselines generated
+in the pinned container reproduce **exactly**, so there is no antialiasing
+noise to leave room for, and slack only buys the chance to miss something. At
+the previous 1%, restoring the nav bar changed all 64 baselines but failed only
+36 of them — on a sparse page, most of what a 48px bar displaces is flat
+background that looks identical shifted, so 28 baselines would have gone on
+passing while depicting a site with no navigation.
+
+```
+tests/visual/
+  routes.mjs            The pages under test (add new pages here)
+  pages.spec.mjs        One test per route per viewport, plus a coverage guard
+  fixtures.mjs          Serves fonts offline, blocks all other network access
+  stabilize.mjs         Waits out lazy images, webfonts and transitions
+  fixtures/events.ics   The fixed calendar the homepage is built against
+  font-cache/           Captured Google Fonts responses (see below)
+  __screenshots__/      The baselines, one directory per viewport
+```
+
+Beyond the pages themselves, one interaction is captured: the event modal,
+opened on the fixture entry that carries every optional field (long
+description, linkified URL and hashtag, "View original" link).
+
+Viewports: `mobile` 375×667, `tablet` 768×1024, `desktop` 1280×800,
+`wide` 1920×1080. They live in `playwright.config.mjs` along with the 0.1%
+threshold, which `VISUAL_MAX_DIFF_RATIO` overrides for a one-off run — useful
+for measuring how far off a change actually is before deciding what to do
+about it.
+
+### Running them
+
+```bash
+npm run test:visual          # build, serve out/, compare against baselines
+npm run test:visual:report   # open the report — expected/actual/diff, side by side
+```
+
+The config rebuilds the site and serves `out/` over
+`scripts/serve-static.mjs`, which reproduces Netlify's clean URLs so the
+screenshots match what actually ships.
+
+### When a change is intentional
+
+A failing screenshot means "something moved" — it does not mean "something
+broke." Look at the diff in the report first. If the new rendering is what you
+wanted, regenerate the baselines and commit them as part of the same change,
+so the diff of the PR shows the visual change alongside the CSS that caused it.
+
+**Regenerate in CI, not locally.** Pixel comparison is only meaningful when the
+renderer is identical, and a Mac renders text differently from the Linux
+container CI uses. Go to **Actions → Refresh screenshot baselines → Run
+workflow**, pick your branch, say why, and it pushes the updated PNGs to that
+branch. `npm run test:visual:update` is the same operation for anyone already
+working inside `mcr.microsoft.com/playwright:v1.56.1-noble` — the image pinned
+in both workflows, which must stay in step with the `@playwright/test` version
+in `package.json`.
+
+### What makes the screenshots reproducible
+
+Two sources of drift are deliberately removed:
+
+- **Fonts.** `globals.css` pulls Marcellus, Suranna and VT323 from the Google
+  Fonts CDN. The tests intercept both font hosts and replay the responses
+  committed under `tests/visual/font-cache/`, so a font revision bump on
+  Google's side can't fail every page at once. Refresh it with
+  `node scripts/update-font-cache.mjs` when you deliberately want newer files
+  (or after changing the `@import`s), then regenerate the baselines.
+  Everything else off-origin is blocked outright, so a slow third party can't
+  turn a screenshot into a flake.
+- **Events.** The homepage's event feed comes from a live calendar and would go
+  stale within days, so the test build points `CALENDAR_FIXTURE_ICS` at
+  `tests/visual/fixtures/events.ics` and freezes the clock with `CALENDAR_NOW`.
+  Same 30-day window, same six cards, same printed dates on every build. The
+  fixture is a real iCalendar file parsed by the real `util/googleCalendar.js`,
+  so the `[PUBLIC]` filter and the recurring-event expansion are exercised on
+  the way to the screenshot — see `tests/visual/fixtures/README.md` for what
+  each entry covers.
+- **Build timezone.** Blog post dates render through `toDateString()`, which
+  follows the build machine's zone, so the test build pins `TZ=UTC`.
+
+Adding a page under `pages/` without adding it to `routes.mjs` fails the
+"every exported route has a screenshot baseline" test, so nothing slips out of
+coverage silently.
 
 ## SEO
 
@@ -122,6 +254,6 @@ feature/*  →  alpha  →  beta  →  main
 - **`beta`** — client preview (Netlify deploy preview)
 - **`main`** — production (deploys to the live site)
 
-CI (GitHub Actions) runs lint, build, and tests on every push; a non-blocking
-`npm audit` reports advisories. Netlify builds with `npm ci && npm run build` and
+CI (GitHub Actions) runs lint, build, unit tests, and the screenshot tests on
+every push; a non-blocking `npm audit` reports advisories. Netlify builds with `npm ci && npm run build` and
 publishes the `out/` directory.

@@ -4,3 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Never build the authoring templates or test fixtures as pages, on any
+  # Netlify context — production, deploy previews, and the beta client preview
+  # alike. The default already excludes them (see util/contentFiles.mjs); this
+  # states it where someone changing deploy settings will see it.
+  INCLUDE_DRAFT_CONTENT = "false"
