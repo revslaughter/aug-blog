@@ -1,5 +1,12 @@
 # Screenshot fixtures
 
+Two things the site reads change on their own schedule — the events calendar
+and the published content — and both would make baselines stale without anyone
+touching the code. The visual tests build against fixtures for both, so a
+failing screenshot always means the layout moved.
+
+## `events.ics` — the homepage event feed
+
 `events.ics` is the calendar the homepage is built against during the visual
 tests. It replaces the live Google Calendar feed, which changes daily and would
 make the homepage baseline stale within a week.
@@ -19,7 +26,7 @@ environment, via two variables `playwright.config.mjs` pins for the build:
 | `CALENDAR_FIXTURE_ICS` | `tests/visual/fixtures/events.ics` | Selects `icsFileSource` instead of the live `icsUrlSource` |
 | `CALENDAR_NOW` | `2026-05-04T14:00:00Z` | Freezes "now", so the 30-day window always selects the same events and prints the same dates |
 
-## What the entries are for
+### What the entries are for
 
 | Entry | Covers |
 | --- | --- |
@@ -30,5 +37,50 @@ environment, via two variables `playwright.config.mjs` pins for the build:
 | Board meeting | No `[PUBLIC]` prefix — must *not* appear; the baseline is the assertion |
 | Seed Swap | Starts before the frozen now — must *not* appear |
 
-Editing this file changes the homepage baselines, so regenerate them in the
-same commit (see the "Screenshot tests" section of the root README).
+## `content/` — posts and recipes
+
+`content/_posts/` and `content/_recipes/` replace the repo's own `_posts/` and
+`_recipes/` for the duration of the test build.
+
+Without this, the blog and recipe indexes would list whatever the client had
+published, so **every post would change `posts-index`'s baseline and fail the
+Screenshots check on a commit that touched no code**. Publishing would mean
+regenerating baselines, which is not a thing to ask of someone writing about a
+plant sale. Against a fixture these baselines move only when the layout does.
+
+It also buys back coverage that would otherwise be gone: `_posts/` and
+`_recipes/` are empty in the repo, so with no fixture there is nothing to
+render and the article and recipe layouts have no screenshots at all.
+
+The substitution happens in `contentDirsFromEnv`, the one function that reads
+the variable — the loaders take their directory as an argument, so nothing
+further down the path knows about it:
+
+| Variable | Value | Why |
+| --- | --- | --- |
+| `CONTENT_FIXTURE_DIR` | `tests/visual/fixtures/content` | Points `getAllPosts`, `getPostForSlug`, `getAllRecipes` and the sitemap generator at `<dir>/_posts` and `<dir>/_recipes` |
+
+These are real Markdown files with real frontmatter, read by the real loaders
+and rendered by the real `processMarkdown`, so the frontmatter parsing, the
+date normalization and the GFM rendering are all exercised on the way to the
+screenshot.
+
+### What the entries are for
+
+| Entry | Covers |
+| --- | --- |
+| `spring-plant-sale-is-open.md` | The article layout carrying its full range: `h2`/`h3`, ordered and unordered lists, bold and italic, a link, a blockquote, and a GFM table |
+| `notes-from-the-compost-pile.md` | A post with **no `pubdate`** — the byline renders without a `<time>` rather than throwing, and it sorts after every dated post on the index |
+| `roasted-roots-with-herb-oil.md` | The recipe layout: nested `h2`/`h3` sections, task-list ingredients, numbered steps |
+
+Two posts also means `posts-index` shows an actual list and its ordering,
+rather than one entry or an empty state.
+
+Nothing here is named `template` or `test-*`; those are draft slugs
+(`util/contentFiles.mjs`) and would be filtered out of the build.
+
+---
+
+Editing either fixture changes the baselines that depend on it, so regenerate
+them in the same commit — see the "Screenshot tests" section of the root
+README.

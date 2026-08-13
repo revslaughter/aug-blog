@@ -14,14 +14,13 @@
  * using `export` would be read as CommonJS and fail there.
  */
 
+import path from "node:path";
+
 /**
- * Draft content: the starter files authors copy, and fixtures the screenshot
- * tests capture. Kept in the repo on purpose — `npm run dev` and the visual
- * suite both need a post and a recipe to render — but never deployed, so the
- * live site does not serve "Put Your Title Here" or Dante's spaghetti.
- *
- * `test-*` is the scratch-draft convention from .gitignore; `test` is the
- * recipe fixture, which predates it.
+ * Draft content: work in progress that should render locally but never
+ * deploy. `test-*` is the scratch-draft convention from .gitignore; the bare
+ * slugs are legacy names kept so a file called template.md or test.md cannot
+ * quietly go live if one reappears.
  */
 const DRAFT_SLUGS = new Set(["template", "test"]);
 const DRAFT_PREFIX = "test-";
@@ -42,8 +41,7 @@ export function isDraftSlug(slug) {
  * production. `next dev` opts in automatically; everything else — including a
  * local `npm run build`, so it matches what deploys — has to ask.
  *
- * The visual suite opts in through playwright.config.mjs, which is what keeps
- * the detail-page baselines meaningful.
+ * The screenshot suite pins it off, so its captures describe what deploys.
  *
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {boolean}
@@ -54,6 +52,63 @@ export function includeDraftContent(env = process.env) {
     return flag === "true" || flag === "1";
   }
   return env.NODE_ENV === "development";
+}
+
+/**
+ * Where the post and recipe Markdown is read from.
+ *
+ * Normally the repo's own `_posts/` and `_recipes/`. Setting
+ * `CONTENT_FIXTURE_DIR` points both at a directory holding its own `_posts/`
+ * and `_recipes/` instead, which is how the screenshot tests build against
+ * fixed content.
+ *
+ * They need that for the same reason the homepage builds against a fixture
+ * calendar: the blog index lists real posts, so every post the client
+ * publishes would change its baseline and turn the Screenshots check red on a
+ * commit that touched no code. Against a fixture, those baselines only move
+ * when the layout does.
+ *
+ * This is the one function that reads the variable — the loaders take their
+ * directory as an argument, so nothing further down the path knows about it.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {string} [cwd]
+ * @returns {{postsDir: string, recipesDir: string}}
+ */
+export function contentDirsFromEnv(env = process.env, cwd = process.cwd()) {
+  const root = env.CONTENT_FIXTURE_DIR
+    ? path.resolve(cwd, env.CONTENT_FIXTURE_DIR)
+    : cwd;
+  return {
+    postsDir: path.join(root, "_posts"),
+    recipesDir: path.join(root, "_recipes"),
+  };
+}
+
+/**
+ * List a content directory, treating a missing one as empty.
+ *
+ * `_posts/` and `_recipes/` each hold only a .gitkeep now that the templates
+ * are gone, and git does not track empty directories — delete that file and
+ * the directory stops existing on a fresh clone, which made `readdirSync`
+ * throw ENOENT and failed the build. An empty content directory is a normal
+ * state for a site with nothing published yet, so it renders the empty state
+ * rather than stopping the build.
+ *
+ * @param {string} dir
+ * @param {typeof import("fs")} fs
+ * @returns {string[]}
+ */
+export function listContentDir(dir, fs) {
+  try {
+    return fs.readdirSync(dir);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      console.warn(`[content] ${dir} does not exist; treating as empty.`);
+      return [];
+    }
+    throw err;
+  }
 }
 
 /**

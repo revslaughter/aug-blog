@@ -1,9 +1,14 @@
 import fs from "fs";
 import { join } from "path";
 import matter from "gray-matter";
-import { publishableSlugs } from "./contentFiles.mjs";
+import {
+	publishableSlugs,
+	listContentDir,
+	contentDirsFromEnv,
+} from "./contentFiles.mjs";
 
-const RECIPES_DIR = join(process.cwd(), "_recipes");
+/** Resolved per call, so CONTENT_FIXTURE_DIR is read at build time. */
+const recipesDir = () => contentDirsFromEnv().recipesDir;
 
 /**
  * @typedef {{
@@ -20,7 +25,7 @@ const RECIPES_DIR = join(process.cwd(), "_recipes");
  * @param {string} [dir] Directory to read from; overridable for tests
  * @returns {Recipe}
  */
-export function getRecipeForID(id, dir = RECIPES_DIR) {
+export function getRecipeForID(id, dir = recipesDir()) {
 	const filePath = join(dir, `${id}.md`);
 	const fileContent = fs.readFileSync(filePath, "utf-8");
 	const { data, content } = matter(fileContent);
@@ -39,8 +44,8 @@ export function getRecipeForID(id, dir = RECIPES_DIR) {
  * @param {{includeDrafts?: boolean}} [options]
  * @returns {Recipe[]}
  */
-export function getAllRecipes(dir = RECIPES_DIR, options) {
-	return publishableSlugs(fs.readdirSync(dir), options).map((id) =>
+export function getAllRecipes(dir = recipesDir(), options) {
+	return publishableSlugs(listContentDir(dir, fs), options).map((id) =>
 		getRecipeForID(id, dir)
 	);
 }

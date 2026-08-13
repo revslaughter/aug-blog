@@ -120,12 +120,18 @@ export default defineConfig({
       // See tests/visual/fixtures/README.md.
       CALENDAR_FIXTURE_ICS: "tests/visual/fixtures/events.ics",
       CALENDAR_NOW: "2026-05-04T14:00:00Z",
-      // The templates in _posts/ and _recipes/ are the only post and recipe
-      // the repo carries, and production deliberately does not build them
-      // (util/contentFiles.mjs). Opt in here so the detail-page routes exist
-      // to be captured — without this the blog and recipe layouts have no
-      // screenshot coverage at all.
-      INCLUDE_DRAFT_CONTENT: "true",
+      // Posts and recipes come from a fixture rather than _posts/ and
+      // _recipes/, for the same reason the calendar does: the blog index lists
+      // real content, so every post the client publishes would change its
+      // baseline and turn this check red on a commit that touched no code.
+      // Against the fixture these baselines move only when the layout does.
+      // See tests/visual/fixtures/README.md.
+      CONTENT_FIXTURE_DIR: "tests/visual/fixtures/content",
+      // Draft content is deliberately left off, so these screenshots describe
+      // exactly what deploys. It also keeps the run deterministic: a scratch
+      // `test-*` draft in someone's working tree would otherwise appear on the
+      // blog index and fail the comparison on their machine but nowhere else.
+      INCLUDE_DRAFT_CONTENT: "false",
       // Belt and braces on dates: the formatter already pins UTC, so this
       // guards anything that reaches for the ambient zone in future.
       TZ: "UTC",
