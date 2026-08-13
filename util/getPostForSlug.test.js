@@ -46,7 +46,8 @@ describe("getAllPosts", () => {
   });
 
   // Regression: /posts/template shipped to production, so the blog index read
-  // "Put Your Title Here (by Put your name here)".
+  // "Put Your Title Here (by Put your name here)". The file stays in the repo
+  // for authors to copy and for the screenshot tests; it just isn't deployed.
   it("does not publish the authoring template", () => {
     writePost("template.md", POST);
     expect(getAllPosts(dir)).toEqual([]);
@@ -56,6 +57,13 @@ describe("getAllPosts", () => {
     writePost("test-wip.md", POST);
     writePost("real.md", POST);
     expect(getAllPosts(dir).map((p) => p.slug)).toEqual(["real"]);
+  });
+
+  it("publishes the template when drafts are switched on", () => {
+    writePost("template.md", POST);
+    expect(
+      getAllPosts(dir, { includeDrafts: true }).map((p) => p.slug)
+    ).toEqual(["template"]);
   });
 });
 

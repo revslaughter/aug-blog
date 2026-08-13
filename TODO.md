@@ -198,9 +198,9 @@ main (production)
   `_posts/` would remove the frontmatter and filename traps entirely.
 - Nav lists only Home/About/Contact. The six program pages still have
   placeholder copy, and `/posts` and `/recipes` have no real content yet.
-- `_posts/` and `_recipes/` hold only their templates, so both indexes render
-  an empty state. First real post or recipe should also get a detail route
-  added back to `tests/visual/routes.mjs`.
+- `_posts/` and `_recipes/` hold only draft content, which is built in dev and
+  under the screenshot tests but never deployed, so both indexes render an
+  empty state in production. First real post or recipe fixes that on its own.
 - Post bodies go through `dangerouslySetInnerHTML`; safe because remark-html
   drops raw HTML, which is also why embeds (video, maps) do not work. Add
   embeds as a constrained component rather than by enabling raw HTML.

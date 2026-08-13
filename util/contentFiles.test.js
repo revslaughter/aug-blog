@@ -1,5 +1,7 @@
 import {
   publishableSlugs,
+  includeDraftContent,
+  isDraftSlug,
   toIsoDate,
   formatDisplayDate,
   byNewestFirst,
@@ -22,16 +24,25 @@ describe("publishableSlugs", () => {
     ).toEqual(["spring-sale"]);
   });
 
-  it("excludes the authoring template", () => {
-    expect(publishableSlugs(["template.md", "real-post.md"])).toEqual([
-      "real-post",
-    ]);
+  it("excludes drafts by default", () => {
+    expect(
+      publishableSlugs([
+        "template.md",
+        "test.md",
+        "test-draft.md",
+        "real-post.md",
+      ])
+    ).toEqual(["real-post"]);
   });
 
-  it("excludes scratch drafts", () => {
-    expect(publishableSlugs(["test-draft.md", "real-post.md"])).toEqual([
-      "real-post",
-    ]);
+  // Drafts are kept in the repo for `npm run dev` and the screenshot tests,
+  // which need a post and a recipe to render; production leaves them out.
+  it("includes drafts when asked", () => {
+    expect(
+      publishableSlugs(["template.md", "test.md", "real-post.md"], {
+        includeDrafts: true,
+      })
+    ).toEqual(["real-post", "template", "test"]);
   });
 
   it("sorts so the build is reproducible regardless of readdir order", () => {
@@ -44,6 +55,64 @@ describe("publishableSlugs", () => {
 
   it("returns nothing for a directory holding only a template", () => {
     expect(publishableSlugs(["template.md"])).toEqual([]);
+  });
+});
+
+describe("isDraftSlug", () => {
+  it.each(["template", "test", "test-wip"])("treats %s as a draft", (slug) => {
+    expect(isDraftSlug(slug)).toBe(true);
+  });
+
+  it.each(["spring-plant-sale", "testimonials", "template-for-beds"])(
+    "treats %s as publishable",
+    (slug) => {
+      // "testimonials" and "template-for-beds" are the near-misses worth
+      // pinning: a substring match rather than a prefix/exact match would
+      // silently unpublish a real post.
+      expect(isDraftSlug(slug)).toBe(false);
+    }
+  );
+});
+
+describe("includeDraftContent", () => {
+  // Fails closed. An environment that says nothing gets the production answer,
+  // so a misconfigured deploy under-publishes instead of leaking a template.
+  it.each([
+    ["nothing is set", {}],
+    ["a production build", { NODE_ENV: "production" }],
+    ["a test run", { NODE_ENV: "test" }],
+    ["the flag is empty", { INCLUDE_DRAFT_CONTENT: "" }],
+    ["the flag is anything else", { INCLUDE_DRAFT_CONTENT: "yes please" }],
+  ])("excludes drafts when %s", (_label, env) => {
+    expect(includeDraftContent(env)).toBe(false);
+  });
+
+  it("includes drafts under next dev", () => {
+    expect(includeDraftContent({ NODE_ENV: "development" })).toBe(true);
+  });
+
+  it.each(["true", "1"])("includes drafts when the flag is %s", (flag) => {
+    expect(includeDraftContent({ INCLUDE_DRAFT_CONTENT: flag })).toBe(true);
+  });
+
+  // The visual suite builds with NODE_ENV=production but needs the templates.
+  it("lets the flag override a production build", () => {
+    expect(
+      includeDraftContent({
+        NODE_ENV: "production",
+        INCLUDE_DRAFT_CONTENT: "true",
+      })
+    ).toBe(true);
+  });
+
+  // Netlify pins this to "false" in netlify.toml.
+  it("lets the flag override next dev", () => {
+    expect(
+      includeDraftContent({
+        NODE_ENV: "development",
+        INCLUDE_DRAFT_CONTENT: "false",
+      })
+    ).toBe(false);
   });
 });
 
@@ -78,19 +147,35 @@ describe("toIsoDate", () => {
 });
 
 describe("formatDisplayDate", () => {
+  // Matching toDateString's format exactly is what keeps this fix invisible to
+  // the screenshot baselines. If this expectation is ever updated, the
+  // post-detail baselines have to be regenerated in the same change.
+  it("matches toDateString's format", () => {
+    expect(formatDisplayDate("2022-05-05T00:00:00.000Z")).toBe(
+      "Thu May 05 2022"
+    );
+  });
+
   // Regression: the old formatter rendered in the running machine's timezone,
   // so a post dated the 1st showed as the previous day on any build agent west
-  // of UTC. Pinning to UTC makes the output independent of who builds.
-  it("renders in UTC regardless of the machine's timezone", () => {
+  // of UTC — the site's dates depended on who ran the build.
+  it("renders the same date west of UTC", () => {
     const original = process.env.TZ;
     try {
       process.env.TZ = "America/Chicago";
       expect(formatDisplayDate("2026-09-01T00:00:00.000Z")).toBe(
-        "September 1, 2026"
+        "Tue Sep 01 2026"
       );
     } finally {
-      process.env.TZ = original;
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
     }
+  });
+
+  it("zero-pads single-digit days, as toDateString does", () => {
+    expect(formatDisplayDate("2026-01-05T00:00:00.000Z")).toBe(
+      "Mon Jan 05 2026"
+    );
   });
 
   it("returns null for a missing date so callers can omit the byline", () => {

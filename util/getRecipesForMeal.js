@@ -31,13 +31,16 @@ export function getRecipeForID(id, dir = RECIPES_DIR) {
 
 /**
  * Every recipe that should become a page. Shares its publishability rules
- * with the blog and the sitemap generator — see util/contentFiles.mjs.
+ * with the blog and the sitemap generator — see util/contentFiles.mjs — so
+ * the template and the test fixture are built in dev and under the screenshot
+ * tests, but never deployed.
  *
  * @param {string} [dir] Directory to read from; overridable for tests
+ * @param {{includeDrafts?: boolean}} [options]
  * @returns {Recipe[]}
  */
-export function getAllRecipes(dir = RECIPES_DIR) {
-	return publishableSlugs(fs.readdirSync(dir)).map((id) =>
+export function getAllRecipes(dir = RECIPES_DIR, options) {
+	return publishableSlugs(fs.readdirSync(dir), options).map((id) =>
 		getRecipeForID(id, dir)
 	);
 }

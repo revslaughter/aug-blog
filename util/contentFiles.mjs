@@ -14,11 +14,47 @@
  * using `export` would be read as CommonJS and fail there.
  */
 
-/** Starter file authors copy; never a page in its own right. */
-const TEMPLATE_SLUG = "template";
+/**
+ * Draft content: the starter files authors copy, and fixtures the screenshot
+ * tests capture. Kept in the repo on purpose — `npm run dev` and the visual
+ * suite both need a post and a recipe to render — but never deployed, so the
+ * live site does not serve "Put Your Title Here" or Dante's spaghetti.
+ *
+ * `test-*` is the scratch-draft convention from .gitignore; `test` is the
+ * recipe fixture, which predates it.
+ */
+const DRAFT_SLUGS = new Set(["template", "test"]);
+const DRAFT_PREFIX = "test-";
 
-/** Scratch drafts. Gitignored, but present in a working tree. */
-const SCRATCH_PREFIX = "test-";
+/**
+ * @param {string} slug
+ * @returns {boolean}
+ */
+export function isDraftSlug(slug) {
+  return DRAFT_SLUGS.has(slug) || slug.startsWith(DRAFT_PREFIX);
+}
+
+/**
+ * Whether draft content is built as pages.
+ *
+ * Fails closed: anything that is not an explicit opt-in excludes drafts, so a
+ * misconfigured environment under-publishes rather than leaking a template to
+ * production. `next dev` opts in automatically; everything else — including a
+ * local `npm run build`, so it matches what deploys — has to ask.
+ *
+ * The visual suite opts in through playwright.config.mjs, which is what keeps
+ * the detail-page baselines meaningful.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {boolean}
+ */
+export function includeDraftContent(env = process.env) {
+  const flag = env.INCLUDE_DRAFT_CONTENT;
+  if (flag !== undefined && flag !== "") {
+    return flag === "true" || flag === "1";
+  }
+  return env.NODE_ENV === "development";
+}
 
 /**
  * Whether a directory entry is a Markdown file at all.
@@ -44,28 +80,20 @@ export function slugFromFilename(filename) {
 }
 
 /**
- * Whether a slug should become a page and a sitemap entry.
- *
- * @param {string} slug
- * @returns {boolean}
- */
-export function isPublishableSlug(slug) {
-  return slug !== TEMPLATE_SLUG && !slug.startsWith(SCRATCH_PREFIX);
-}
-
-/**
  * The single definition of "what's publishable in this directory": Markdown
- * only, no template, no scratch drafts. Sorted so builds are reproducible —
- * readdir order is filesystem-dependent.
+ * only, and drafts only where they are wanted. Sorted so builds are
+ * reproducible — readdir order is filesystem-dependent.
  *
  * @param {string[]} filenames Raw directory listing
+ * @param {{includeDrafts?: boolean}} [options] Defaults to reading the environment
  * @returns {string[]} Publishable slugs
  */
-export function publishableSlugs(filenames) {
+export function publishableSlugs(filenames, { includeDrafts } = {}) {
+  const withDrafts = includeDrafts ?? includeDraftContent();
   return filenames
     .filter(isMarkdownFile)
     .map(slugFromFilename)
-    .filter(isPublishableSlug)
+    .filter((slug) => withDrafts || !isDraftSlug(slug))
     .sort();
 }
 
@@ -90,14 +118,27 @@ export function toIsoDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 /**
- * Format an ISO date for display.
+ * Format an ISO date for display, as `Thu May 05 2022`.
  *
- * Pinned to UTC deliberately. The previous implementation passed an *array*
- * to the Date constructor and then called `toDateString()`, which renders in
- * the running machine's timezone — so a date rendered a day early whenever
- * the build agent sat west of UTC. Netlify builds in UTC and a contributor's
- * laptop does not, which made the output depend on who ran the build.
+ * That is `Date.prototype.toDateString`'s format, reproduced from UTC parts
+ * rather than called directly, and deliberately so: `toDateString()` renders
+ * in the running machine's timezone, so a post dated the 1st displayed as the
+ * previous day on any agent west of UTC. Netlify builds in UTC and a
+ * contributor's laptop does not, which made the rendered date depend on who
+ * ran the build. (The caller made it worse by passing an *array* to the Date
+ * constructor, which parsed only by accident.)
+ *
+ * Keeping the exact format is what makes this fix invisible to the screenshot
+ * baselines. It is not a good format for a byline — "May 5, 2022" would read
+ * better — but changing it is a design decision and a baseline refresh, not a
+ * bug fix, so it is left alone here.
  *
  * @param {string|null} isoDate
  * @returns {string|null}
@@ -106,12 +147,8 @@ export function formatDisplayDate(isoDate) {
   if (!isoDate) return null;
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-US", {
-    timeZone: "UTC",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${WEEKDAYS[date.getUTCDay()]} ${MONTHS[date.getUTCMonth()]} ${day} ${date.getUTCFullYear()}`;
 }
 
 /**

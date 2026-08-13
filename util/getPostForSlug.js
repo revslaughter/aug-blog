@@ -44,15 +44,20 @@ export function getPostForSlug(slug, dir = POSTS_DIR) {
 }
 
 /**
- * Every post that should become a page. Non-Markdown files, the authoring
- * template, and scratch drafts are excluded here rather than only in the
- * sitemap generator, so the two cannot disagree about what is published.
+ * Every post that should become a page. Non-Markdown files and draft content
+ * are excluded here rather than only in the sitemap generator, so the two
+ * cannot disagree about what is published.
+ *
+ * Whether drafts count is decided by the environment — see
+ * `includeDraftContent`. Production leaves them out; `next dev` and the
+ * screenshot tests build them.
  *
  * @param {string} [dir] Directory to read from; overridable for tests
+ * @param {{includeDrafts?: boolean}} [options]
  * @returns {Post[]}
  */
-export function getAllPosts(dir = POSTS_DIR) {
-  return publishableSlugs(fs.readdirSync(dir)).map((slug) =>
+export function getAllPosts(dir = POSTS_DIR, options) {
+  return publishableSlugs(fs.readdirSync(dir), options).map((slug) =>
     getPostForSlug(slug, dir)
   );
 }
@@ -60,8 +65,9 @@ export function getAllPosts(dir = POSTS_DIR) {
 /**
  * @param {number} limit The number of recent posts to return
  * @param {string} [dir] Directory to read from; overridable for tests
+ * @param {{includeDrafts?: boolean}} [options]
  * @returns {Post[]} Post data, from most to least recent
  */
-export function getRecentPosts(limit, dir = POSTS_DIR) {
-  return getAllPosts(dir).sort(byNewestFirst).slice(0, limit);
+export function getRecentPosts(limit, dir = POSTS_DIR, options) {
+  return getAllPosts(dir, options).sort(byNewestFirst).slice(0, limit);
 }

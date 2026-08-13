@@ -109,8 +109,36 @@ Post body in Markdown…
 ```
 
 The post is picked up automatically — it appears on the blog, gets its own page
-at `/posts/<slug>`, and is added to the sitemap on the next build. Files named
-`test-*` are gitignored scratch drafts.
+at `/posts/<slug>`, and is added to the sitemap on the next build.
+
+`pubdate` is forgiving: a bare date (`2026-06-25`), a quoted one
+(`"2026-06-25"`), or one written out (`June 25, 2026`) all work, and a post
+with no date still publishes — it just sorts last and shows no date. Nothing
+you can type in frontmatter will fail the build.
+
+### Draft content
+
+`_posts/template.md`, `_recipes/template.md` and `_recipes/test.md` stay in the
+repo but are **never deployed**. They are what `npm run dev` and the screenshot
+tests render — without them the blog and recipe layouts would have no example
+page and no visual coverage — but the live site does not serve them.
+
+The switch is `INCLUDE_DRAFT_CONTENT`, defined in `util/contentFiles.mjs`:
+
+| Where | Drafts built? | How |
+| ----- | ------------- | --- |
+| `npm run dev` | yes | `NODE_ENV=development` |
+| `npm run test:visual` | yes | set in `playwright.config.mjs` |
+| `npm run build` locally | no | matches what deploys |
+| Netlify (all contexts) | no | pinned in `netlify.toml` |
+
+It fails closed: anything that isn't an explicit opt-in leaves drafts out, so a
+misconfigured environment under-publishes rather than leaking a template to the
+live site. To preview a production build locally, just `npm run build` — to
+preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
+
+Files named `test-*` are gitignored scratch drafts, and are treated as drafts
+by the same rule.
 
 ## Screenshot tests
 
