@@ -8,11 +8,14 @@
  * guard test that fails if an exported route is missing from this list, so
  * nothing silently escapes visual coverage.
  *
- * The three detail routes below are the authoring templates and the recipe
- * fixture. Production does not build them (util/contentFiles.mjs), so they
- * exist here only because playwright.config.mjs sets INCLUDE_DRAFT_CONTENT
- * for the build behind these tests. They are the repo's only post and recipe,
- * so without them the blog and recipe layouts have no coverage at all.
+ * There is no post or recipe detail route here, because there is no post or
+ * recipe: content is written through the CMS at /admin now, and the authoring
+ * templates that used to stand in for real entries are gone. Both indexes
+ * render their empty state.
+ *
+ * When the first real post or recipe is published, add a detail route so the
+ * article layout is covered again. The guard test at the bottom of
+ * pages.spec.mjs will fail until you do.
  */
 export const ROUTES = [
   { name: "home", path: "/" },
@@ -25,9 +28,6 @@ export const ROUTES = [
   { name: "summer-faire", path: "/summer-faire" },
   { name: "workshops", path: "/workshops" },
   { name: "posts-index", path: "/posts" },
-  { name: "post-detail", path: "/posts/template" },
   { name: "recipes-index", path: "/recipes" },
-  { name: "recipe-detail", path: "/recipes/template" },
-  { name: "recipe-detail-test", path: "/recipes/test" },
   { name: "not-found", path: "/404" },
 ];

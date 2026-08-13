@@ -11,14 +11,17 @@
 backend:
   name: github
   repo: revslaughter/aug-blog
-  # Publishes straight to production. There is no review step: saving here
-  # commits to main, Netlify rebuilds, and the post is live in a few minutes.
+  # Saving commits to beta, not main. Netlify builds beta as a preview, so the
+  # author writes, saves, and sees the result on the preview site a few minutes
+  # later — no review step and nobody to wait for. Going live is a separate,
+  # deliberate act: merge beta into main.
   #
-  # To route posts through review instead, add `publish_mode: editorial_workflow`
-  # below — the CMS then opens a pull request per entry and the editor grows a
-  # draft/in-review/ready workflow. That reinstates a person in the loop, which
-  # is the bottleneck this setup exists to remove, so it is off by default.
-  branch: main
+  # This is why there is no `publish_mode: editorial_workflow` here. That would
+  # open a pull request per entry and put a person back in the loop before the
+  # author can see anything, which is the bottleneck this setup exists to
+  # remove. The beta branch gives the same "look before it ships" safety
+  # without blocking the writing.
+  branch: beta
   commit_messages:
     create: "Add {{collection}} “{{slug}}”"
     update: "Update {{collection}} “{{slug}}”"
@@ -37,8 +40,9 @@ collections:
     label: Blog posts
     label_singular: Blog post
     description: >-
-      Posts appear on the blog at /posts, newest first. Publishing takes a few
-      minutes while the site rebuilds.
+      Posts appear on the blog at /posts, newest first. Saving publishes to the
+      preview site a few minutes later; it goes to the live site when beta is
+      merged into main.
     folder: _posts
     create: true
     # Derived from the title, so filenames are always URL-safe. This is the

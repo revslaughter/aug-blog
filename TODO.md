@@ -192,15 +192,16 @@ main (production)
 - General pages (contact/about improvements)
 
 **Tech Debt:**
-- Publishing is a git workflow, which is the main blocker on the client
-  writing anything — two attempts so far have produced files that fail the
-  build rather than posts. A git-backed CMS (Sveltia/Decap) writing into
-  `_posts/` would remove the frontmatter and filename traps entirely.
+- Sveltia CMS at `/admin` is the authoring interface, writing to `beta`. It
+  still needs a GitHub OAuth app registered and installed in Netlify before
+  anyone can sign in — see the README. Until that is done, only token sign-in
+  works.
 - Nav lists only Home/About/Contact. The six program pages still have
-  placeholder copy, and `/posts` and `/recipes` have no real content yet.
-- `_posts/` and `_recipes/` hold only draft content, which is built in dev and
-  under the screenshot tests but never deployed, so both indexes render an
-  empty state in production. First real post or recipe fixes that on its own.
+  placeholder copy, and `/posts` and `/recipes` have no content yet.
+- `_posts/` and `_recipes/` are empty, so both indexes render an empty state.
+  The first real post or recipe should also get a detail route added to
+  `tests/visual/routes.mjs` — there is currently no screenshot coverage of the
+  article or recipe layout.
 - Post bodies go through `dangerouslySetInnerHTML`; safe because remark-html
   drops raw HTML, which is also why embeds (video, maps) do not work. Add
   embeds as a constrained component rather than by enabling raw HTML.

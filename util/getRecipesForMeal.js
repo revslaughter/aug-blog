@@ -1,7 +1,7 @@
 import fs from "fs";
 import { join } from "path";
 import matter from "gray-matter";
-import { publishableSlugs } from "./contentFiles.mjs";
+import { publishableSlugs, listContentDir } from "./contentFiles.mjs";
 
 const RECIPES_DIR = join(process.cwd(), "_recipes");
 
@@ -40,7 +40,7 @@ export function getRecipeForID(id, dir = RECIPES_DIR) {
  * @returns {Recipe[]}
  */
 export function getAllRecipes(dir = RECIPES_DIR, options) {
-	return publishableSlugs(fs.readdirSync(dir), options).map((id) =>
+	return publishableSlugs(listContentDir(dir, fs), options).map((id) =>
 		getRecipeForID(id, dir)
 	);
 }

@@ -10,7 +10,11 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { publishableSlugs, toIsoDate } from "../util/contentFiles.mjs";
+import {
+  publishableSlugs,
+  listContentDir,
+  toIsoDate,
+} from "../util/contentFiles.mjs";
 
 const SITE_URL = "https://www.antiochurbangrowers.com";
 const POSTS_DIR = path.join(process.cwd(), "_posts");
@@ -39,7 +43,7 @@ const STATIC_ROUTES = [
  * @param {boolean} withLastmod Recipes carry no date, so they get no lastmod
  */
 function getContentEntries(dir, routePrefix, priority, withLastmod) {
-  return publishableSlugs(fs.readdirSync(dir)).map((slug) => {
+  return publishableSlugs(listContentDir(dir, fs)).map((slug) => {
     const entry = { path: `${routePrefix}/${slug}`, priority };
     if (!withLastmod) return entry;
 

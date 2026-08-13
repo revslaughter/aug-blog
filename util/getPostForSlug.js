@@ -3,6 +3,7 @@ import { join } from "path";
 import matter from "gray-matter";
 import {
   publishableSlugs,
+  listContentDir,
   toIsoDate,
   byNewestFirst,
 } from "./contentFiles.mjs";
@@ -57,7 +58,7 @@ export function getPostForSlug(slug, dir = POSTS_DIR) {
  * @returns {Post[]}
  */
 export function getAllPosts(dir = POSTS_DIR, options) {
-  return publishableSlugs(fs.readdirSync(dir), options).map((slug) =>
+  return publishableSlugs(listContentDir(dir, fs), options).map((slug) =>
     getPostForSlug(slug, dir)
   );
 }

@@ -57,6 +57,32 @@ export function includeDraftContent(env = process.env) {
 }
 
 /**
+ * List a content directory, treating a missing one as empty.
+ *
+ * `_posts/` and `_recipes/` each hold only a .gitkeep now that the templates
+ * are gone, and git does not track empty directories — delete that file and
+ * the directory stops existing on a fresh clone, which made `readdirSync`
+ * throw ENOENT and failed the build. An empty content directory is a normal
+ * state for a site with nothing published yet, so it renders the empty state
+ * rather than stopping the build.
+ *
+ * @param {string} dir
+ * @param {typeof import("fs")} fs
+ * @returns {string[]}
+ */
+export function listContentDir(dir, fs) {
+  try {
+    return fs.readdirSync(dir);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      console.warn(`[content] ${dir} does not exist; treating as empty.`);
+      return [];
+    }
+    throw err;
+  }
+}
+
+/**
  * Whether a directory entry is a Markdown file at all.
  *
  * Content directories accumulate things nobody meant to publish — .DS_Store,

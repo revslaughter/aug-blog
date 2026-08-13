@@ -48,7 +48,8 @@ pages/            Routes (Pages Router)
   posts/            Blog index + dynamic post pages ([slug].js)
 components/         Layout, header/footer, RecentPosts, Seo, StructuredData
 util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
-_posts/            Blog posts (Markdown + frontmatter); template.md is the starter
+_posts/            Blog posts (Markdown + frontmatter), written via /admin
+_recipes/          Recipes, same shape as posts but undated
 public/            Static assets (logo, favicon, robots.txt)
 scripts/           Build-time sitemap generator, static server + font cache for tests
 styles/            CSS modules + globals
@@ -86,20 +87,23 @@ prefix the title in Google Calendar, e.g. rename "Bunny Event" to
 `[PUBLIC] Bunny Event`; the prefix is stripped automatically before display.
 
 Because the data is baked in at build time, it only updates on a fresh
-deploy. `.github/workflows/weekly-refresh.yml` triggers a Netlify rebuild
-every Monday (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
+deploy. `.github/workflows/daily-refresh.yml` triggers a Netlify rebuild
+every morning (via a `NETLIFY_BUILD_HOOK_URL` repo secret) so events stay
 current even without a code push. Trigger it manually anytime from the
 Actions tab, or just push a commit.
 
-We are experimenting to find the right cadence.
+Daily bounds how stale the feed can get to 24 hours, but it is a schedule and
+not a publish hook: an event added this afternoon appears tomorrow morning. For
+a same-day addition, run the workflow by hand.
 
 ## Writing a blog post
 
-**The normal way is the editor at [`/admin`](#the-editor-admin).** Everything
-below describes what it writes, and is the fallback for editing by hand.
+**Use the editor at [`/admin`](#the-editor-admin).** It generates the filename,
+enforces the fields, and commits for you. Everything below describes what it
+writes, and is the fallback for editing a post by hand.
 
-Copy `_posts/template.md`, rename it to your post's slug (e.g.
-`spring-plant-sale.md`), and fill in the frontmatter:
+A post is a Markdown file in `_posts/`, named for its slug (e.g.
+`spring-plant-sale.md`), with YAML frontmatter:
 
 ```markdown
 ---
@@ -111,44 +115,46 @@ pubdate: 2026-06-25
 Post body in Markdown…
 ```
 
-The post is picked up automatically — it appears on the blog, gets its own page
-at `/posts/<slug>`, and is added to the sitemap on the next build.
+It is picked up automatically — it appears on the blog, gets its own page at
+`/posts/<slug>`, and is added to the sitemap on the next build. Recipes work
+the same way in `_recipes/`, with `title` and `author` but no date.
 
 `pubdate` is forgiving: a bare date (`2026-06-25`), a quoted one
 (`"2026-06-25"`), or one written out (`June 25, 2026`) all work, and a post
 with no date still publishes — it just sorts last and shows no date. Nothing
 you can type in frontmatter will fail the build.
 
+`_posts/` and `_recipes/` are empty apart from a `.gitkeep`, which is only
+there because git does not track empty directories. Delete it and a fresh
+clone has no `_posts/` at all; the build survives that, but the file costs
+nothing.
+
 ### Draft content
 
-`_posts/template.md`, `_recipes/template.md` and `_recipes/test.md` stay in the
-repo but are **never deployed**. They are what `npm run dev` and the screenshot
-tests render — without them the blog and recipe layouts would have no example
-page and no visual coverage — but the live site does not serve them.
+Files named `test-*` are scratch drafts. They are gitignored, so they never
+leave your machine, and they are **not built into anything that deploys** —
+you can leave one half-written without it reaching the site.
 
 The switch is `INCLUDE_DRAFT_CONTENT`, defined in `util/contentFiles.mjs`:
 
 | Where | Drafts built? | How |
 | ----- | ------------- | --- |
 | `npm run dev` | yes | `NODE_ENV=development` |
-| `npm run test:visual` | yes | set in `playwright.config.mjs` |
 | `npm run build` locally | no | matches what deploys |
+| `npm run test:visual` | no | screenshots describe what deploys |
 | Netlify (all contexts) | no | pinned in `netlify.toml` |
 
 It fails closed: anything that isn't an explicit opt-in leaves drafts out, so a
-misconfigured environment under-publishes rather than leaking a template to the
+misconfigured environment under-publishes rather than leaking a draft to the
 live site. To preview a production build locally, just `npm run build` — to
 preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
-
-Files named `test-*` are gitignored scratch drafts, and are treated as drafts
-by the same rule.
 
 ## The editor (`/admin`)
 
 [Sveltia CMS](https://sveltiacms.app) runs at `/admin` on the deployed site. It
 is a writing interface over this repo: entries are saved as Markdown in
-`_posts/` and `_recipes/`, committed to `main`, and published by the normal
-Netlify build. Content stays in git — the CMS is a front end onto it, not a
+`_posts/` and `_recipes/` and committed to **`beta`**, which Netlify builds as
+the preview site. Content stays in git — the CMS is a front end onto it, not a
 separate store, so it can be removed at any time and every post remains a file
 in this repo.
 
@@ -186,30 +192,22 @@ ever leaves Netlify.
 
 ### Publishing behaviour
 
-Saving commits straight to `main`, so a post is live within a few minutes and
-the author needs nobody's help. There is no review step by design — the review
-step is what left two client-written posts sitting unmerged.
+Saving commits to **`beta`**, which Netlify builds as the preview site. So the
+author writes, saves, and sees their work on the preview a few minutes later,
+without needing anybody's help and without it being live.
 
-To reinstate one, add `publish_mode: editorial_workflow` to the `backend`
-block in `config.yml`. The CMS then opens a pull request per entry and grows a
-draft → in review → ready workflow, and somebody has to merge.
+Going live is a separate, deliberate act: merge `beta` into `main`.
 
-### Known rough edge
+There is no review step inside the editor by design — that step is what left
+two client-written posts sitting unmerged. `beta` provides the "look before it
+ships" safety instead, without blocking the writing. If you do want review in
+the editor, add `publish_mode: editorial_workflow` to the `backend` block in
+`config.yml`; the CMS then opens a pull request per entry and grows a
+draft → in review → ready workflow, and somebody has to merge each one.
 
-The authoring templates are real files in `_posts/` and `_recipes/`, so they
-appear in the editor's entry list as "Put Your Title Here" and "Real Basic
-Spaghettorinno". They are not published (see [Draft content](#draft-content)),
-but an author can open and edit one, and nothing will appear on the site when
-they do.
-
-Neither Sveltia nor Decap can exclude entries by filename, so the fix is a
-choice, not a setting:
-
-- **Leave it.** The templates double as worked examples in the editor.
-- **Delete them** once there is a real post and a real recipe to render in
-  their place, and add a detail route back to `tests/visual/routes.mjs`.
-- **Move them** out of the content folders, accepting that `npm run dev` and
-  the screenshot tests then have no post or recipe to render.
+> **`beta` must be current.** The editor is served from whatever is deployed,
+> and it writes to `beta`. Merge `alpha` into `beta` before handing `/admin` to
+> anyone, or they will be editing against stale code.
 
 ## Screenshot tests
 
@@ -296,8 +294,12 @@ Two sources of drift are deliberately removed:
   so the `[PUBLIC]` filter and the recurring-event expansion are exercised on
   the way to the screenshot — see `tests/visual/fixtures/README.md` for what
   each entry covers.
-- **Build timezone.** Blog post dates render through `toDateString()`, which
-  follows the build machine's zone, so the test build pins `TZ=UTC`.
+- **Build timezone.** `formatDisplayDate` already renders post dates from UTC
+  parts, so this is belt and braces: the test build also pins `TZ=UTC` to catch
+  anything that reaches for the ambient zone later.
+- **Draft content.** The test build sets `INCLUDE_DRAFT_CONTENT=false`, so a
+  scratch `test-*` draft in your working tree can't appear on the blog index
+  and fail the comparison on your machine but nowhere else.
 
 Adding a page under `pages/` without adding it to `routes.mjs` fails the
 "every exported route has a screenshot baseline" test, so nothing slips out of

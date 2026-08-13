@@ -1,4 +1,5 @@
 import {
+  listContentDir,
   publishableSlugs,
   includeDraftContent,
   isDraftSlug,
@@ -35,8 +36,7 @@ describe("publishableSlugs", () => {
     ).toEqual(["real-post"]);
   });
 
-  // Drafts are kept in the repo for `npm run dev` and the screenshot tests,
-  // which need a post and a recipe to render; production leaves them out.
+  // `next dev` opts in, so a scratch draft is visible while you write it.
   it("includes drafts when asked", () => {
     expect(
       publishableSlugs(["template.md", "test.md", "real-post.md"], {
@@ -55,6 +55,45 @@ describe("publishableSlugs", () => {
 
   it("returns nothing for a directory holding only a template", () => {
     expect(publishableSlugs(["template.md"])).toEqual([]);
+  });
+});
+
+describe("listContentDir", () => {
+  const fakeFs = (impl) => ({ readdirSync: impl });
+
+  it("lists the directory", () => {
+    const fs = fakeFs(() => ["a.md", "b.md"]);
+    expect(listContentDir("_posts", fs)).toEqual(["a.md", "b.md"]);
+  });
+
+  // _posts/ and _recipes/ hold only a .gitkeep now that the templates are
+  // gone, and git does not track empty directories — losing that file makes
+  // the directory vanish on a fresh clone. An empty content directory is a
+  // normal state for a site with nothing published, not a build failure.
+  it("treats a missing directory as empty", () => {
+    const fs = fakeFs(() => {
+      const err = new Error("ENOENT");
+      err.code = "ENOENT";
+      throw err;
+    });
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(listContentDir("_posts", fs)).toEqual([]);
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  // A directory that exists but cannot be read is a real problem, not an
+  // empty blog; don't paper over it.
+  it("rethrows anything that is not ENOENT", () => {
+    const fs = fakeFs(() => {
+      const err = new Error("EACCES");
+      err.code = "EACCES";
+      throw err;
+    });
+    expect(() => listContentDir("_posts", fs)).toThrow("EACCES");
   });
 });
 
@@ -95,7 +134,8 @@ describe("includeDraftContent", () => {
     expect(includeDraftContent({ INCLUDE_DRAFT_CONTENT: flag })).toBe(true);
   });
 
-  // The visual suite builds with NODE_ENV=production but needs the templates.
+  // An explicit opt-in beats a production build, which is how you preview a
+  // scratch draft against a real build: INCLUDE_DRAFT_CONTENT=true npm run build
   it("lets the flag override a production build", () => {
     expect(
       includeDraftContent({
