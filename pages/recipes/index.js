@@ -13,12 +13,16 @@ export default function Recipes({ recipes }) {
 					<h1>Recipes</h1>
 				</header>
 				Yum! Cooking is great.
-				{recipes.map((recipe) => (
-					<p key={recipe.id}>
-						<Link href={`/recipes/${recipe.id}`}>{recipe.title}</Link>
-						{` (by ${recipe.author})`}
-					</p>
-				))}
+				{recipes.length === 0 ? (
+					<p>No recipes yet — check back soon!</p>
+				) : (
+					recipes.map((recipe) => (
+						<p key={recipe.id}>
+							<Link href={`/recipes/${recipe.id}`}>{recipe.title}</Link>
+							{recipe.author ? ` (by ${recipe.author})` : ""}
+						</p>
+					))
+				)}
 			</article>
 		</Layout>
 	);

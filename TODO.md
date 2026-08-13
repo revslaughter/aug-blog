@@ -173,10 +173,17 @@ main (production)
 ## Notes
 
 **Current Status:**
-- Dependencies: 4 years old (Next.js 12, React 17)
-- Security: 18 vulnerabilities (1 critical in image optimization)
-- SEO: None (no meta tags, sitemap, or structured data)
-- Branches: Created and pushed (feature/seo, feature/security, alpha, beta)
+- Dependencies: current (Next.js 16, React 19, ESLint 9, Node 22)
+- Security: `npm audit --audit-level=high` runs in CI and is non-blocking; see
+  issue #32 for why it is permanently red
+- SEO: shipped — meta/OG/Twitter tags, canonical URLs, JSON-LD, generated
+  sitemap, robots.txt
+- Events: homepage feed from a public Google Calendar, baked in at build time
+  and refreshed daily by `.github/workflows/daily-refresh.yml`
+- Tests: Jest for units, Playwright screenshot diffing across four viewports
+- Branches: `alpha` and `beta` exist, but work has largely gone straight to
+  `main` via PR. Either adopt the documented flow or simplify it to match
+  what actually happens.
 
 **Client Requirements (from meetings):**
 - Events page
@@ -185,6 +192,16 @@ main (production)
 - General pages (contact/about improvements)
 
 **Tech Debt:**
-- Contact page missing Layout wrapper
-- Navigation header commented out (decide: keep or remove)
+- Publishing is a git workflow, which is the main blocker on the client
+  writing anything — two attempts so far have produced files that fail the
+  build rather than posts. A git-backed CMS (Sveltia/Decap) writing into
+  `_posts/` would remove the frontmatter and filename traps entirely.
+- Nav lists only Home/About/Contact. The six program pages still have
+  placeholder copy, and `/posts` and `/recipes` have no real content yet.
+- `_posts/` and `_recipes/` hold only draft content, which is built in dev and
+  under the screenshot tests but never deployed, so both indexes render an
+  empty state in production. First real post or recipe fixes that on its own.
+- Post bodies go through `dangerouslySetInnerHTML`; safe because remark-html
+  drops raw HTML, which is also why embeds (video, maps) do not work. Add
+  embeds as a constrained component rather than by enabling raw HTML.
 - Image loader config may need review after Next.js update

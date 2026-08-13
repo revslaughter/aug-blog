@@ -6,6 +6,7 @@ import ResponsiveSplit from "../components/responsiveSplit";
 import EventFeed from "../components/eventFeed";
 import PlantDivider from "../components/plantDivider";
 import styles from "../styles/Home.module.css";
+import { ORGANIZATION, FORMATTED_ADDRESS } from "../util/siteMeta";
 import { calendarOptionsFromEnv, getUpcomingEvents } from "../util/googleCalendar";
 
 export default function Home({ events }) {
@@ -34,24 +35,18 @@ export default function Home({ events }) {
 							one backyard at a time
 						</p>
 						<div>
-							<a
-								target="_blank"
-								rel="noreferrer"
-								href="https://www.google.com/maps/place/Antioch+Urban+Growers/@39.1736056,-94.5500099,17z/data=!4m13!1m7!3m6!1s0x87c0f9c3c2452193:0xcff71674a50bec0a!2s2727+NE+44th+St,+Kansas+City,+MO+64117!3b1!8m2!3d39.1735968!4d-94.5478165!3m4!1s0x87c0f9c3def32867:0xf72ad06e93249453!8m2!3d39.1736056!4d-94.5478212"
-							>
-								2727 NE 44th St, Kansas City, MO 64117
+							<a target="_blank" rel="noreferrer" href={ORGANIZATION.mapsUrl}>
+								{FORMATTED_ADDRESS}
 							</a>
 						</div>
 						<div>
-							<a href="tel:+18166994953">(816) 699-4953</a>
+							<a href={`tel:${ORGANIZATION.telephone}`}>
+								{ORGANIZATION.telephoneDisplay}
+							</a>
 						</div>
 						<PlantDivider />
 						<div className={styles.storeLink}>
-							<a
-								href="https://antiochurbang.square.site"
-								target="_blank"
-								rel="noreferrer"
-							>
+							<a href={ORGANIZATION.storeUrl} target="_blank" rel="noreferrer">
 								Visit our Store
 							</a>
 						</div>
@@ -60,7 +55,7 @@ export default function Home({ events }) {
 							<div className={styles.followText}>
 								<div>
 									<a
-										href="https://www.facebook.com/antiochurbangrowers"
+										href={ORGANIZATION.facebookUrl}
 										target="_blank"
 										rel="noreferrer"
 									>

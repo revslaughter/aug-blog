@@ -93,9 +93,14 @@ export default defineConfig({
       // See tests/visual/fixtures/README.md.
       CALENDAR_FIXTURE_ICS: "tests/visual/fixtures/events.ics",
       CALENDAR_NOW: "2026-05-04T14:00:00Z",
-      // Blog post dates are rendered with `toDateString()`, which follows the
-      // build machine's zone. Pin it so a contributor's laptop doesn't shift
-      // every post date by a day.
+      // The templates in _posts/ and _recipes/ are the only post and recipe
+      // the repo carries, and production deliberately does not build them
+      // (util/contentFiles.mjs). Opt in here so the detail-page routes exist
+      // to be captured — without this the blog and recipe layouts have no
+      // screenshot coverage at all.
+      INCLUDE_DRAFT_CONTENT: "true",
+      // Belt and braces on dates: the formatter already pins UTC, so this
+      // guards anything that reaches for the ambient zone in future.
       TZ: "UTC",
     },
   },
