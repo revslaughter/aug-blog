@@ -8,7 +8,7 @@ recipes are all Markdown in this repo, edited through a CMS at `/admin` and
 published without a developer in the loop.
 
 - **Live site** — `main`, deployed by Netlify
-- **Roadmap and known gaps** — [`TODO.md`](TODO.md)
+- **What's outstanding** — [the issue tracker](https://github.com/revslaughter/aug-blog/issues), which is the only roadmap
 - **Guide for the client** — [`docs/writing-for-the-website.md`](docs/writing-for-the-website.md)
 
 ## Contents
@@ -113,7 +113,7 @@ at their URLs and in the sitemap; they are simply not advertised in the header
 until their copy is signed off. Flipping one on is a CMS edit, not a commit.
 
 > **Known gap:** `/posts` and `/recipes` are code routes rather than `_nav/`
-> entries, so they are not in the header yet. See `TODO.md`.
+> entries, so they are not in the header yet — see #47.
 
 ## Posts and recipes
 
