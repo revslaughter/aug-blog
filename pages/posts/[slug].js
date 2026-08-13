@@ -3,6 +3,7 @@ import ErrorPage from "next/error";
 import Layout from "../../components/layout";
 import Seo from "../../components/seo";
 import { getAllPosts, getPostForSlug } from "../../util/getPostForSlug";
+import { formatDisplayDate } from "../../util/contentFiles.mjs";
 import processMarkdown from "../../util/processMarkdown";
 
 export default function Post(props) {
@@ -23,10 +24,12 @@ export default function Post(props) {
         <header>
           <h1 className="article-title">{props.title}</h1>
           <div className="byline">
-            <address className="author">By {props.author}</address>
-            <time dateTime={props.pubdate}>
-              {props.publishDate}
-            </time>
+            {props.author && (
+              <address className="author">By {props.author}</address>
+            )}
+            {props.publishDate && (
+              <time dateTime={props.pubdate}>{props.publishDate}</time>
+            )}
           </div>
         </header>
         <div
@@ -51,13 +54,11 @@ function cantFindPage(router, post) {
 export async function getStaticProps({ params }) {
   const post = getPostForSlug(params.slug);
   const renderedContent = await processMarkdown(post.content);
-  let publishDate = new Date(post.pubdate.split("T")[0].split("-"));
-  publishDate = publishDate.toDateString();
   return {
     props: {
       ...post,
       renderedContent,
-      publishDate,
+      publishDate: formatDisplayDate(post.pubdate),
       excerpt: makeExcerpt(post.content),
     },
   };

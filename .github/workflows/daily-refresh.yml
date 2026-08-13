@@ -1,0 +1,42 @@
+name: Daily content refresh
+
+# The site is a static export with no server runtime, so the Google Calendar
+# feed on the homepage is baked in at build time (see util/googleCalendar.js).
+# This triggers a rebuild on a schedule so upcoming events stay current even
+# when nobody has pushed a code change.
+#
+# Daily rather than weekly: on a weekly rebuild an event added on Tuesday for
+# that Saturday never appeared at all, because the next build landed after it
+# had already passed. Daily bounds that staleness to 24 hours. It is still a
+# schedule, not a publish hook — an event added this afternoon shows up
+# tomorrow morning, so a same-day addition needs a manual run (below) or a
+# build hook fired from wherever the event was created.
+#
+# Requires a NETLIFY_BUILD_HOOK_URL repository secret — create one under
+# Netlify: Site configuration > Build & deploy > Build hooks.
+#
+# Note that GitHub disables scheduled workflows in repositories with no
+# activity for 60 days, and does so silently. If events stop refreshing, check
+# whether this workflow is still enabled before looking anywhere else.
+on:
+  schedule:
+    - cron: "0 13 * * *" # daily, 8am America/Chicago (13:00 UTC)
+  workflow_dispatch: {}
+
+jobs:
+  trigger-rebuild:
+    name: Trigger Netlify rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Netlify build hook
+        env:
+          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
+        run: |
+          if [ -z "$NETLIFY_BUILD_HOOK_URL" ]; then
+            echo "::error::NETLIFY_BUILD_HOOK_URL is not set. Add it under" \
+                 "Settings > Secrets and variables > Actions. Without it this" \
+                 "workflow cannot refresh the calendar feed."
+            exit 1
+          fi
+          curl --fail --silent --show-error -X POST "$NETLIFY_BUILD_HOOK_URL"
+          echo "Netlify build triggered."

@@ -1,12 +1,13 @@
 import Layout from "../components/layout";
 import Seo from "../components/seo";
+import { ORGANIZATION, FORMATTED_ADDRESS } from "../util/siteMeta";
 
 export default function Contact() {
   return (
 		<Layout>
 			<Seo
 				title="Contact"
-				description="Visit Antioch Urban Growers at 2727 NE 44th St, Kansas City, MO 64117, or give us a call. We'd love to hear from you."
+				description={`Visit Antioch Urban Growers at ${FORMATTED_ADDRESS}, or give us a call. We'd love to hear from you.`}
 				path="/contact"
 			/>
 			<article>
@@ -15,16 +16,14 @@ export default function Contact() {
 				</header>
 				<ul>
 					<li>
-						<a
-							target="_blank"
-							rel="noreferrer"
-							href="https://www.google.com/maps/place/Antioch+Urban+Growers/@39.1736056,-94.5500099,17z/data=!4m13!1m7!3m6!1s0x87c0f9c3c2452193:0xcff71674a50bec0a!2s2727+NE+44th+St,+Kansas+City,+MO+64117!3b1!8m2!3d39.1735968!4d-94.5478165!3m4!1s0x87c0f9c3def32867:0xf72ad06e93249453!8m2!3d39.1736056!4d-94.5478212"
-						>
-							2727 NE 44th St, Kansas City, MO 64117
+						<a target="_blank" rel="noreferrer" href={ORGANIZATION.mapsUrl}>
+							{FORMATTED_ADDRESS}
 						</a>
 					</li>
 					<li>
-						<a href="tel:+18166994953">(816) 699-4953</a>
+						<a href={`tel:${ORGANIZATION.telephone}`}>
+							{ORGANIZATION.telephoneDisplay}
+						</a>
 					</li>
 				</ul>
 			</article>
