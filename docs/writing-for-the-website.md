@@ -135,6 +135,7 @@ of this section.
 | **Page title** | The big heading at the top of the page. |
 | **Menu name** | Shorter wording for the top menu, if the title is long — "Workshops" for a page called "Sustainable Living Workshops". Leave it empty to use the page title. |
 | **Show in the top menu** | Whether the page is listed in the bar across the top. See below. |
+| **Page text** | The main wording of the page. This is the big one, and most visits to this screen are only about this box. |
 | **Menu order** | Where it sits in that bar. Lower numbers come first. |
 | **Search description** | One or two sentences. This is the grey text under the link when the page comes up in a Google search — it does not appear on the page itself. Worth writing well. |
 | **Opening line** | Optional. One line just under the heading. |
@@ -142,7 +143,9 @@ of this section.
 | **Show the store link** | Adds a "Visit the store" link near the bottom. |
 | **Show address and phone** | Adds the farm's address and phone number. |
 | **Small print** | The little italic line at the very bottom — good for "times shift each year, check back nearer the date". |
-| **Page text** | The main wording. |
+
+Everything below **Page text** decides where the page sits and how it is
+finished off around the edges. You can leave all of it alone and just write.
 
 You do not have to fill all of these in. A page with just a title, a search
 description and some text is a perfectly good page.

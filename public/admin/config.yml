@@ -97,6 +97,17 @@ collections:
         hint: >-
           Off means the page still exists and its link still works — it just is
           not listed in the bar at the top. Turn it on when the wording is ready.
+      # The writing sits here, directly under the two settings that decide
+      # whether anyone sees the page, and above everything else. Editing copy is
+      # what this collection is for and what the client will open it to do —
+      # burying the editor under six settings fields makes the rarest task the
+      # most prominent one. A field named `body` is the document body, below the
+      # frontmatter.
+      - label: Page text
+        name: body
+        widget: markdown
+        required: false
+        hint: The main wording of the page.
       - label: Menu order
         name: order
         widget: number
@@ -155,12 +166,6 @@ collections:
         hint: >-
           The little italic line at the very bottom — good for "times change
           each year, check back nearer the date".
-      # A field named `body` is the document body, below the frontmatter.
-      - label: Page text
-        name: body
-        widget: markdown
-        required: false
-        hint: The main wording of the page.
 
   - name: posts
     label: Blog posts
