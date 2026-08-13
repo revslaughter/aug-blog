@@ -5,9 +5,8 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Every page in `tests/visual/routes.js` is captured at each viewport below
  * and compared against a committed baseline. A run fails if more than
- * VISUAL_MAX_DIFF_RATIO of the pixels changed (1% by default) — small enough
- * to catch a shifted heading, loose enough to tolerate the sub-pixel noise
- * antialiasing produces between otherwise identical runs.
+ * VISUAL_MAX_DIFF_RATIO of the pixels changed (0.1% by default) — see the
+ * constant below for why that number, and what happens at 1%.
  *
  * Baselines are byte-comparable only when the renderer is identical, so they
  * are generated and checked in the pinned Playwright container that CI uses
@@ -18,8 +17,36 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.VISUAL_PORT || 4321);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
-/** Fraction of pixels allowed to differ before a page is considered changed. */
-const MAX_DIFF_RATIO = Number(process.env.VISUAL_MAX_DIFF_RATIO || 0.01);
+/**
+ * Fraction of pixels allowed to differ before a page is considered changed.
+ *
+ * 0.1%, chosen from measurement rather than feel. Restoring the nav bar was
+ * the case that exposed the old 1%: it changed all 64 baselines but failed
+ * only 36 of them, because on a sparse page most of what a 48px bar displaces
+ * is flat background that looks identical shifted. Twenty-eight baselines
+ * would have kept passing while depicting a site with no nav — a threshold
+ * that hides a whole navigation bar is not protecting anything.
+ *
+ * The two numbers this sits between, both measured in the pinned container:
+ *
+ *   noise   0 pixels. Re-rendering a page whose baseline was generated in
+ *           this image reproduces it exactly — 61 of 65 at zero difference,
+ *           the other 4 being baselines that predated the current image.
+ *   signal  5,126 pixels, the smallest change the nav produced anywhere.
+ *
+ * So there is no real tension to trade off: the gap is the whole range. This
+ * sits near the bottom of it, leaving room for incidental variation without
+ * leaving room for a structural change.
+ *
+ * Re-measure before loosening this. If it starts failing spuriously the cause
+ * is a renderer that no longer matches the baselines — regenerate them (see
+ * the README) rather than widening the tolerance to cover the drift.
+ */
+const MAX_DIFF_RATIO =
+  process.env.VISUAL_MAX_DIFF_RATIO !== undefined &&
+  process.env.VISUAL_MAX_DIFF_RATIO !== ""
+    ? Number(process.env.VISUAL_MAX_DIFF_RATIO)
+    : 0.001;
 
 /**
  * The canonical viewport set. `deviceScaleFactor: 1` everywhere keeps the

@@ -143,11 +143,19 @@ by the same rule.
 ## Screenshot tests
 
 Every page is captured at four viewports and compared, pixel by pixel, against
-a committed baseline image. A page fails if **more than 1% of its pixels
-changed** — enough slack to absorb antialiasing noise, tight enough to catch a
-heading that moved or a card that reflowed. This is the safety net for CSS
-edits: a tweak to `globals.css` that quietly breaks the recipe pages on mobile
-shows up as a failing check rather than a client email.
+a committed baseline image. A page fails if **more than 0.1% of its pixels
+changed**. This is the safety net for CSS edits: a tweak to `globals.css` that
+quietly breaks the recipe pages on mobile shows up as a failing check rather
+than a client email.
+
+That threshold is deliberately tight, and it is set from measurement — the
+reasoning is in `playwright.config.mjs`. The short version: baselines generated
+in the pinned container reproduce **exactly**, so there is no antialiasing
+noise to leave room for, and slack only buys the chance to miss something. At
+the previous 1%, restoring the nav bar changed all 64 baselines but failed only
+36 of them — on a sparse page, most of what a 48px bar displaces is flat
+background that looks identical shifted, so 28 baselines would have gone on
+passing while depicting a site with no navigation.
 
 ```
 tests/visual/
@@ -165,8 +173,10 @@ opened on the fixture entry that carries every optional field (long
 description, linkified URL and hashtag, "View original" link).
 
 Viewports: `mobile` 375×667, `tablet` 768×1024, `desktop` 1280×800,
-`wide` 1920×1080. They live in `playwright.config.mjs` along with the 1%
-threshold, which `VISUAL_MAX_DIFF_RATIO` overrides for a one-off run.
+`wide` 1920×1080. They live in `playwright.config.mjs` along with the 0.1%
+threshold, which `VISUAL_MAX_DIFF_RATIO` overrides for a one-off run — useful
+for measuring how far off a change actually is before deciding what to do
+about it.
 
 ### Running them
 
