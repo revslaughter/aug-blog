@@ -150,12 +150,15 @@ content-pipeline hardening, the screenshot tests, the About copy, the nav and
 the editor. `main` had been parked at `be76b73` while the work accumulated on
 `beta`.
 
-**`publish` stays in step with `main`** — `sync-publish.yml` merges `main` into
-`publish` on every push, so the client's branch deploy previews their writing on
-production code instead of drifting a release behind. It merges and never
-forces: pending content survives, and the re-cut chore is gone. Automating the
-re-cut instead would have deleted a post saved between a merge and the next code
-push.
+**`publish` stays in step with `main`** — `sync-publish.yml` rebases it onto
+`main` on every push, so the client's branch deploy previews their writing on
+production code instead of drifting a release behind, and the branch stays what
+the docs say it is: `main` plus the entries added since. Once content has been
+published those commits replay to nothing and are dropped, so the re-cut chore
+happens by itself. The force-push is leased against the SHA the run fetched, so
+an entry saved mid-run refuses the push rather than being overwritten —
+automating the re-cut instead would have deleted a post saved between a merge
+and the next code push.
 
 **`visual-baselines.yml` dispatchable** — GitHub only offers
 `workflow_dispatch` for workflows that exist on the default branch, and this

@@ -259,23 +259,36 @@ help and without it being live.
 Going live is a separate, deliberate act: merge `publish` into `main`.
 
 Keeping `publish` current afterwards is automatic.
-`.github/workflows/sync-publish.yml` merges `main` into `publish` on every push
-to `main`, so the branch deploy always previews the client's writing on
-production code rather than on whatever shipped last release.
+`.github/workflows/sync-publish.yml` rebases it onto `main` on every push to
+`main`, so the branch deploy always previews the client's writing on production
+code rather than on whatever shipped last release.
 
-It **merges** rather than re-cutting, and pushes without `--force`. When
-nothing is pending that is a fast-forward and the result is identical to a
-re-cut; when the client has unpublished work it becomes a merge commit and the
-work survives. Refusing to force is the safety mechanism: automating the
-re-cut below would delete a post saved at 10am when a code fix lands at 11am,
-silently, from the author's point of view.
+The branch therefore stays exactly what this section says it is: `main`, plus
+the entries the editor has added since. That is the reason it rebases rather
+than merging `main` in — a merge works too, but leaves a merge commit on
+`publish` for every push to `main`, and all of them land in `main`'s history
+when `publish` is merged back, on the branch whose whole selling point is that
+its diff is content and nothing else.
 
-Merging `main` into `publish` does not weaken the guarantee below — `main` is
+Once `publish` has been merged into `main`, replaying its commits produces
+nothing, so they are dropped and `publish` ends up equal to `main`. The re-cut
+below happens by itself, without the step that discards work.
+
+What makes that safe is that the force-push is **leased against the SHA the run
+fetched**. If the editor commits while the workflow is running, the push is
+refused and the run retries against the new tip. Automating the re-cut instead
+would delete a post saved at 10am when a code fix lands at 11am, silently, from
+the author's point of view — the difference is that rebasing replays those
+commits rather than discarding them.
+
+Rebasing `publish` onto `main` does not weaken the guarantee below — `main` is
 released code. What `publish` must never carry is `alpha` or `beta`.
 
-The workflow fails, having pushed nothing, if the same content file was changed
-on both branches. Resolve that by hand; do not re-cut, which resolves it by
-discarding the author's side.
+The two branches write to different places — `publish` only ever touches
+`_nav/`, `_posts/`, `_recipes/` and `public/uploads/` — so a conflict means the
+same content file was changed on both sides. The run fails having pushed
+nothing. Resolve it by hand; do not re-cut, which resolves it by discarding the
+author's side.
 
 Re-cutting is still the right move by hand — when you have looked at the branch
 and know it holds nothing you want:
@@ -522,7 +535,7 @@ Three operational workflows sit alongside CI, all dispatchable from the
 | --- | --- | --- |
 | Daily content refresh | 13:00 UTC daily | Fires the Netlify build hook so the calendar feed stays current |
 | Refresh screenshot baselines | Manual | Regenerates baselines in the pinned container and commits them to your branch |
-| Sync publish with main | Push to `main` | Merges `main` into `publish`, so the client's preview runs production code |
+| Sync publish with main | Push to `main` | Rebases `publish` onto `main`, so the client's preview runs production code |
 
 GitHub only offers `workflow_dispatch` for workflows that exist on the default
 branch, so all three must stay on `main`.

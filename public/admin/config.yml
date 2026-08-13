@@ -32,10 +32,12 @@ backend:
   # without blocking the writing.
   #
   # Keeping this branch in step with main is automated — sync-publish.yml
-  # merges main into it on every push to main, so the preview runs production
-  # code rather than whatever shipped last release. It merges rather than
-  # re-cutting and never force-pushes, so an entry saved here is safe even if a
-  # code change lands on main before it has been published.
+  # rebases it onto main on every push to main, so the preview runs production
+  # code rather than whatever shipped last release. It replays the entries
+  # saved here rather than re-cutting the branch over them, and its push is
+  # leased against the commit it started from, so an entry saved while it runs
+  # refuses the push instead of being overwritten. Once an entry has reached
+  # main it replays to nothing and drops out, leaving this branch equal to main.
   branch: publish
   commit_messages:
     create: "Add {{collection}} “{{slug}}”"
