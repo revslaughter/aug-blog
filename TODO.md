@@ -26,10 +26,6 @@ Keeping content off the integration branches means publishing a post cannot
 ship a half-finished feature, and a code release cannot be held up waiting on
 content.
 
-> In practice most code has gone straight to `main` via PR rather than through
-> `alpha` → `beta`. Worth deciding: adopt the documented flow, or simplify the
-> documentation to match what happens.
-
 ---
 
 ## Blocked on setup outside the repo
@@ -63,11 +59,11 @@ See the README's "The editor (`/admin`)" section for the detail.
 
 ## Next
 
-- [ ] **`visual-baselines.yml` cannot be dispatched.** GitHub only runs
+- [X] **`visual-baselines.yml` cannot be dispatched.** GitHub only runs
       `workflow_dispatch` workflows that exist on the default branch, and it is
       on `alpha` only. Lands with the merge above; worth confirming afterwards,
       because it is the documented way to refresh baselines.
-- [ ] **`/posts` and `/recipes` in the nav.** The section pages are now CMS-
+- [X] **`/posts` and `/recipes` in the nav.** The section pages are now CMS-
       controlled, but these two are code routes, not `_nav/` entries, so they
       still need adding to the header by hand once there is content to show.
       Worth deciding whether they become `_nav/` entries that link out instead.
