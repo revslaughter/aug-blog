@@ -35,6 +35,11 @@ standing between the client and publishing.
 
 - [X] **Create the `publish` branch** — exists, cut from `main` at `be76b73`.
       Re-cut it from `main` after each merge back, so it never drifts.
+- [ ] **Re-cut `publish` from the promoted `main`.** It was cut at `be76b73`,
+      which the promotion leaves far behind — so its Netlify branch deploy
+      would preview the old site, which is the one thing that preview exists
+      to avoid. `git checkout -B publish origin/main && git push
+      --force-with-lease`, as after any merge back.
 - [ ] **Add a Netlify branch deploy for `publish`** so there is somewhere to preview
 - [ ] **Register a GitHub OAuth app** — callback `https://api.netlify.com/auth/done`
 - [ ] **Install it in Netlify** under Access & security → OAuth
@@ -53,22 +58,9 @@ See the README's "The editor (`/admin`)" section for the detail.
       to show the shape of the page, which is why they are still `in_nav: false`.
       No longer blocked on a developer: the client rewrites them under **Pages**
       in the editor and turns each one on when it reads right.
-- [ ] **Promote `beta` to `main`.** Half done: `alpha` reached `beta` in PR #39,
-      so `beta` now carries everything since June — hardening, screenshot tests,
-      the About copy, the nav, the editor — and sits 20 commits ahead of `main`.
-      `main` is still at `be76b73`, so none of it is on the live site yet.
-      Deliberately parked for now. The only thing waiting on it is the
-      `visual-baselines.yml` dispatch below, which has a local workaround.
 
 ## Next
 
-- [ ] **`visual-baselines.yml` still cannot be dispatched.** GitHub only runs
-      `workflow_dispatch` workflows that exist on the default branch, and the
-      file is on `alpha`/`beta` only — `main` has just `ci.yml` and
-      `weekly-refresh.yml`. No longer blocking, because `npm run baseline`
-      regenerates baselines locally in the same pinned container; that is now
-      the everyday route and this workflow is the fallback for anyone without
-      Docker. Resolves itself with the promotion above; confirm it then.
 - [ ] **`/posts` and `/recipes` in the nav.** The section pages are CMS-
       controlled now, but these two are code routes rather than `_nav/` entries,
       so they still need adding to the header by hand once there is content to
@@ -101,7 +93,8 @@ See the README's "The editor (`/admin`)" section for the detail.
       on a static export. Either fix them or stop running it.
 - [ ] **#22** — documentation pass over inline comments.
 - [ ] **Analytics.** Nothing is measuring whether any of the SEO work landed.
-- [ ] **Submit the sitemap to Google Search Console** once `main` is current.
+- [ ] **Submit the sitemap to Google Search Console.** No longer waiting on
+      anything — `main` carries the generated sitemap and the real copy now.
 
 ---
 
@@ -152,7 +145,18 @@ fails the build with an explanation, rather than silently never rendering.
 **Rebaselining off CI** (PR #40) — `npm run baseline` runs the screenshot
 update inside the same pinned Playwright container CI uses, so it works from
 macOS. This closed a real gap: the only sanctioned route was a workflow that
-cannot currently be dispatched, and `--update-snapshots` on the host rewrites
-every baseline that differs, not only the intended ones. The image tag is
-derived from the installed `@playwright/test`, and a test fails if either
+could not be dispatched at the time, and `--update-snapshots` on the host
+rewrites every baseline that differs, not only the intended ones. The image tag
+is derived from the installed `@playwright/test`, and a test fails if either
 workflow drifts from it.
+
+**Promoted `beta` to `main`** — everything since June is on the live site: the
+content-pipeline hardening, the screenshot tests, the About copy, the nav and
+the editor. `main` had been parked at `be76b73` while the work accumulated on
+`beta`.
+
+**`visual-baselines.yml` dispatchable** — GitHub only offers
+`workflow_dispatch` for workflows that exist on the default branch, and this
+one lived on `alpha`/`beta` only. The promotion put it on `main`, so **Actions
+→ Refresh screenshot baselines** works. `npm run baseline` stays the everyday
+route; the workflow is the fallback for anyone without Docker.
