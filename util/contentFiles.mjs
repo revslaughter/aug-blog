@@ -55,12 +55,11 @@ export function includeDraftContent(env = process.env) {
 }
 
 /**
- * Where the post and recipe Markdown is read from.
+ * Where the editable Markdown is read from.
  *
- * Normally the repo's own `_posts/` and `_recipes/`. Setting
- * `CONTENT_FIXTURE_DIR` points both at a directory holding its own `_posts/`
- * and `_recipes/` instead, which is how the screenshot tests build against
- * fixed content.
+ * Normally the repo's own `_posts/`, `_recipes/` and `_nav/`. Setting
+ * `CONTENT_FIXTURE_DIR` points all three at a directory holding its own copies
+ * instead, which is how the screenshot tests build against fixed content.
  *
  * They need that for the same reason the homepage builds against a fixture
  * calendar: the blog index lists real posts, so every post the client
@@ -68,12 +67,17 @@ export function includeDraftContent(env = process.env) {
  * commit that touched no code. Against a fixture, those baselines only move
  * when the layout does.
  *
+ * `_nav/` is fixtured for a stronger version of that reason. Post copy only
+ * reaches the blog pages, but the nav bar is on *every* page — so the client
+ * reordering a section, or flipping one out of the nav, would move all 60-odd
+ * baselines at once. Against a fixture, editable copy cannot fail this check.
+ *
  * This is the one function that reads the variable — the loaders take their
  * directory as an argument, so nothing further down the path knows about it.
  *
  * @param {NodeJS.ProcessEnv} [env]
  * @param {string} [cwd]
- * @returns {{postsDir: string, recipesDir: string}}
+ * @returns {{postsDir: string, recipesDir: string, navDir: string}}
  */
 export function contentDirsFromEnv(env = process.env, cwd = process.cwd()) {
   const root = env.CONTENT_FIXTURE_DIR
@@ -82,6 +86,7 @@ export function contentDirsFromEnv(env = process.env, cwd = process.cwd()) {
   return {
     postsDir: path.join(root, "_posts"),
     recipesDir: path.join(root, "_recipes"),
+    navDir: path.join(root, "_nav"),
   };
 }
 

@@ -1,9 +1,9 @@
 # Screenshot fixtures
 
 Two things the site reads change on their own schedule — the events calendar
-and the published content — and both would make baselines stale without anyone
-touching the code. The visual tests build against fixtures for both, so a
-failing screenshot always means the layout moved.
+and the content the client edits — and both would make baselines stale without
+anyone touching the code. The visual tests build against fixtures for both, so
+a failing screenshot always means the layout moved.
 
 ## `events.ics` — the homepage event feed
 
@@ -37,10 +37,10 @@ environment, via two variables `playwright.config.mjs` pins for the build:
 | Board meeting | No `[PUBLIC]` prefix — must *not* appear; the baseline is the assertion |
 | Seed Swap | Starts before the frozen now — must *not* appear |
 
-## `content/` — posts and recipes
+## `content/` — posts, recipes and the section pages
 
-`content/_posts/` and `content/_recipes/` replace the repo's own `_posts/` and
-`_recipes/` for the duration of the test build.
+`content/_posts/`, `content/_recipes/` and `content/_nav/` replace the repo's
+own copies for the duration of the test build.
 
 Without this, the blog and recipe indexes would list whatever the client had
 published, so **every post would change `posts-index`'s baseline and fail the
@@ -58,7 +58,7 @@ further down the path knows about it:
 
 | Variable | Value | Why |
 | --- | --- | --- |
-| `CONTENT_FIXTURE_DIR` | `tests/visual/fixtures/content` | Points `getAllPosts`, `getPostForSlug`, `getAllRecipes` and the sitemap generator at `<dir>/_posts` and `<dir>/_recipes` |
+| `CONTENT_FIXTURE_DIR` | `tests/visual/fixtures/content` | Points `getAllPosts`, `getPostForSlug`, `getAllRecipes`, `getAllNavPages` and both build-time generators at `<dir>/_posts`, `<dir>/_recipes` and `<dir>/_nav` |
 
 These are real Markdown files with real frontmatter, read by the real loaders
 and rendered by the real `processMarkdown`, so the frontmatter parsing, the
@@ -78,6 +78,26 @@ rather than one entry or an empty state.
 
 Nothing here is named `template` or `test-*`; those are draft slugs
 (`util/contentFiles.mjs`) and would be filtered out of the build.
+
+### Why `_nav/` is fixtured too
+
+For a stronger version of the same reason. A post only reaches the blog pages,
+but `_nav/` decides what is in the header — which is on **every** page. The
+client reordering a section, renaming one, or turning one on would move all
+sixty-odd baselines at once, on a commit that touched no code.
+
+It also fixes what the section pages themselves are built from, so the eight
+`about` / `compost` / `plant-sale` … baselines describe a known page rather than
+whatever the copy says this week.
+
+The files started as copies of the repo's `_nav/`. They are expected to diverge
+as the client rewrites the real ones, and that is the point — this directory is
+a layout fixture, not a mirror. What matters is that it keeps exercising every
+optional block: a `schedule` table, `store_link`, `contact_details`, a `note`,
+an `intro`, and a Markdown body with headings and lists.
+
+Adding a page here without adding it to `routes.mjs` fails the coverage guard in
+`pages.spec.mjs`, which is the intended way round.
 
 ---
 
