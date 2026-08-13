@@ -26,10 +26,6 @@ Keeping content off the integration branches means publishing a post cannot
 ship a half-finished feature, and a code release cannot be held up waiting on
 content.
 
-> In practice most code has gone straight to `main` via PR rather than through
-> `alpha` → `beta`. Worth deciding: adopt the documented flow, or simplify the
-> documentation to match what happens.
-
 ---
 
 ## Blocked on setup outside the repo
@@ -37,7 +33,8 @@ content.
 Nothing here can be done from a pull request. These are the only things
 standing between the client and publishing.
 
-- [ ] **Create the `publish` branch** — `git checkout -B publish origin/main && git push -u origin publish`
+- [X] **Create the `publish` branch** — exists, cut from `main` at `be76b73`.
+      Re-cut it from `main` after each merge back, so it never drifts.
 - [ ] **Add a Netlify branch deploy for `publish`** so there is somewhere to preview
 - [ ] **Register a GitHub OAuth app** — callback `https://api.netlify.com/auth/done`
 - [ ] **Install it in Netlify** under Access & security → OAuth
@@ -52,21 +49,31 @@ See the README's "The editor (`/admin`)" section for the detail.
 ## Now
 
 - [ ] **Program page copy.** Six pages — plant sale, produce sale, summer
-      faire, workshops, mindful movement, compost — still carry placeholder
-      text, which is why they are not in the nav. Needs the client.
-- [ ] **Promote `alpha` through `beta` to `main`.** Everything since June sits
-      on `alpha` — hardening, screenshot tests, the About copy and the nav.
-      `beta` and `main` are both still at `be76b73`; PR #38 is the promotion to
-      `beta`. Until that lands, none of it is on the live site.
+      faire, workshops, mindful movement, compost — carry sample copy written
+      to show the shape of the page, which is why they are still `in_nav: false`.
+      No longer blocked on a developer: the client rewrites them under **Pages**
+      in the editor and turns each one on when it reads right.
+- [ ] **Promote `beta` to `main`.** Half done: `alpha` reached `beta` in PR #39,
+      so `beta` now carries everything since June — hardening, screenshot tests,
+      the About copy, the nav, the editor — and sits 20 commits ahead of `main`.
+      `main` is still at `be76b73`, so none of it is on the live site yet.
+      Deliberately parked for now. The only thing waiting on it is the
+      `visual-baselines.yml` dispatch below, which has a local workaround.
 
 ## Next
 
-- [ ] **`visual-baselines.yml` cannot be dispatched.** GitHub only runs
-      `workflow_dispatch` workflows that exist on the default branch, and it is
-      on `alpha` only. Lands with the merge above; worth confirming afterwards,
-      because it is the documented way to refresh baselines.
-- [ ] **Nav.** Currently Home / About / Contact. Add the program pages as their
-      copy lands, and `/posts` and `/recipes` once there is content.
+- [ ] **`visual-baselines.yml` still cannot be dispatched.** GitHub only runs
+      `workflow_dispatch` workflows that exist on the default branch, and the
+      file is on `alpha`/`beta` only — `main` has just `ci.yml` and
+      `weekly-refresh.yml`. No longer blocking, because `npm run baseline`
+      regenerates baselines locally in the same pinned container; that is now
+      the everyday route and this workflow is the fallback for anyone without
+      Docker. Resolves itself with the promotion above; confirm it then.
+- [ ] **`/posts` and `/recipes` in the nav.** The section pages are CMS-
+      controlled now, but these two are code routes rather than `_nav/` entries,
+      so they still need adding to the header by hand once there is content to
+      show. Worth deciding whether they become `_nav/` entries that link out
+      instead. (Not started — nothing in PR #40 touches this.)
 - [ ] **Embeds in posts.** Video, maps and Facebook posts do not work: post
       bodies go through `dangerouslySetInnerHTML` and are only safe because
       remark-html drops raw HTML. Add embeds as a constrained component — a
@@ -88,7 +95,10 @@ See the README's "The editor (`/admin`)" section for the detail.
       fixes that properly; the manual workflow run is the current answer.
 - [ ] **#32 — Security Audit is permanently red.** Non-blocking
       (`continue-on-error`), but a check that is always red trains people to
-      ignore checks. Either fix the advisories or stop running it.
+      ignore checks — it failed on all three pushes to PR #40 and was correctly
+      ignored each time, which is the habit the check is teaching. Six high
+      advisories, all in `next`/`postcss`/`sharp` and none reachable at runtime
+      on a static export. Either fix them or stop running it.
 - [ ] **#22** — documentation pass over inline comments.
 - [ ] **Analytics.** Nothing is measuring whether any of the SEO work landed.
 - [ ] **Submit the sitemap to Google Search Console** once `main` is current.
@@ -132,3 +142,17 @@ Home / About / Contact are reachable by people rather than only by crawlers.
 
 **The editor** (#37) — Sveltia CMS at `/admin`, writing Markdown to `publish`.
 Content stays in git; no dependency, no build step, no recurring cost.
+
+**The section pages in the CMS** (PR #40) — About, Contact and the six program
+pages are Markdown in `_nav/`, built by one `pages/[slug].js` rather than a file
+each. The client writes the copy and decides what appears in the top menu, and
+in what order, without a commit. A slug that collides with an existing route
+fails the build with an explanation, rather than silently never rendering.
+
+**Rebaselining off CI** (PR #40) — `npm run baseline` runs the screenshot
+update inside the same pinned Playwright container CI uses, so it works from
+macOS. This closed a real gap: the only sanctioned route was a workflow that
+cannot currently be dispatched, and `--update-snapshots` on the host rewrites
+every baseline that differs, not only the intended ones. The image tag is
+derived from the installed `@playwright/test`, and a test fails if either
+workflow drifts from it.

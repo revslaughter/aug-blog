@@ -16,25 +16,40 @@ import {
   contentDirsFromEnv,
   toIsoDate,
 } from "../util/contentFiles.mjs";
+import { getAllNavPages } from "../util/navPages.mjs";
 
 const SITE_URL = "https://www.antiochurbangrowers.com";
-const { postsDir: POSTS_DIR, recipesDir: RECIPES_DIR } = contentDirsFromEnv();
+const {
+  postsDir: POSTS_DIR,
+  recipesDir: RECIPES_DIR,
+  navDir: NAV_DIR,
+} = contentDirsFromEnv();
 const OUT_FILE = path.join(process.cwd(), "public", "sitemap.xml");
 
-// Static routes and a relative priority hint for crawlers.
+// Routes that are code, not content, plus a relative priority hint.
 const STATIC_ROUTES = [
   { path: "/", priority: "1.0" },
-  { path: "/plant-sale", priority: "0.8" },
-  { path: "/produce-sale", priority: "0.8" },
-  { path: "/summer-faire", priority: "0.8" },
-  { path: "/workshops", priority: "0.8" },
-  { path: "/mindful-movement", priority: "0.8" },
-  { path: "/compost", priority: "0.8" },
-  { path: "/about", priority: "0.7" },
-  { path: "/contact", priority: "0.7" },
   { path: "/posts", priority: "0.8" },
   { path: "/recipes", priority: "0.8" },
 ];
+
+/**
+ * The section pages, read from `_nav/` rather than listed here.
+ *
+ * This list used to be hand-written, which put it one commit behind every
+ * change to the sections — exactly the drift this file's header warns about for
+ * posts. Now a section added in the CMS is in the sitemap on the next build.
+ *
+ * Every section page is included, not only the ones in the nav bar: `in_nav`
+ * governs the header, and a page kept out of it while its copy is finished is
+ * still a real page at a real URL.
+ */
+function getNavEntries() {
+  return getAllNavPages(fs, NAV_DIR).map((page) => ({
+    path: `/${page.slug}`,
+    priority: "0.8",
+  }));
+}
 
 /**
  * @param {string} dir Content directory
@@ -66,6 +81,7 @@ function urlTag({ path: route, priority, lastmod }) {
 
 const entries = [
   ...STATIC_ROUTES,
+  ...getNavEntries(),
   ...getContentEntries(POSTS_DIR, "/posts", "0.6", true),
   ...getContentEntries(RECIPES_DIR, "/recipes", "0.6", false),
 ];

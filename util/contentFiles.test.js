@@ -64,12 +64,14 @@ describe("contentDirsFromEnv", () => {
     expect(contentDirsFromEnv({}, "/repo")).toEqual({
       postsDir: "/repo/_posts",
       recipesDir: "/repo/_recipes",
+      navDir: "/repo/_nav",
     });
   });
 
   // The screenshot tests build against fixture content so the blog index
-  // baseline does not move every time the client publishes a post.
-  it("redirects both directories at a fixture", () => {
+  // baseline does not move every time the client publishes a post — and, for
+  // _nav/, so that editable nav copy cannot move every baseline at once.
+  it("redirects all three directories at a fixture", () => {
     expect(
       contentDirsFromEnv(
         { CONTENT_FIXTURE_DIR: "tests/visual/fixtures/content" },
@@ -78,12 +80,18 @@ describe("contentDirsFromEnv", () => {
     ).toEqual({
       postsDir: "/repo/tests/visual/fixtures/content/_posts",
       recipesDir: "/repo/tests/visual/fixtures/content/_recipes",
+      navDir: "/repo/tests/visual/fixtures/content/_nav",
     });
   });
 
   it("accepts an absolute fixture path", () => {
-    expect(contentDirsFromEnv({ CONTENT_FIXTURE_DIR: "/tmp/fx" }, "/repo"))
-      .toEqual({ postsDir: "/tmp/fx/_posts", recipesDir: "/tmp/fx/_recipes" });
+    expect(
+      contentDirsFromEnv({ CONTENT_FIXTURE_DIR: "/tmp/fx" }, "/repo")
+    ).toEqual({
+      postsDir: "/tmp/fx/_posts",
+      recipesDir: "/tmp/fx/_recipes",
+      navDir: "/tmp/fx/_nav",
+    });
   });
 
   // Netlify sets empty strings for unset build variables; that must not be
@@ -92,6 +100,7 @@ describe("contentDirsFromEnv", () => {
     expect(contentDirsFromEnv({ CONTENT_FIXTURE_DIR: "" }, "/repo")).toEqual({
       postsDir: "/repo/_posts",
       recipesDir: "/repo/_recipes",
+      navDir: "/repo/_nav",
     });
   });
 });

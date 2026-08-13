@@ -28,34 +28,70 @@ npm run dev        # dev server at http://localhost:3000
 | Command          | What it does                                                        |
 | ---------------- | ------------------------------------------------------------------- |
 | `npm run dev`    | Start the local dev server                                          |
-| `npm run build`  | Generate the sitemap, then build the static export into `out/`      |
+| `npm run build`  | Generate the nav and sitemap, then build the static export into `out/` |
+| `npm run generate` | Rewrite `util/nav.generated.json` and `public/sitemap.xml` from content |
 | `npm run lint`   | Run ESLint                                                          |
 | `npm test`       | Run the Jest test suite                                             |
 | `npm run test:visual` | Build the site and compare every page against its screenshot baselines |
-| `npm run test:visual:update` | Rewrite the baselines from the current build                 |
+| `npm run test:visual:update` | Rewrite the baselines from the current build — **only correct inside the pinned container**; use `npm run baseline` |
 | `npm run test:visual:report` | Open the last screenshot run's HTML report (diffs included)  |
+| `npm run baseline` | Regenerate the baselines in the pinned Playwright container, from any host |
+| `npm run baseline:check` | Run the screenshot comparison in that container without rewriting anything |
 
-`npm run build` runs `scripts/generate-sitemap.mjs` first (via `prebuild`) to
-regenerate `public/sitemap.xml` from the static routes and published posts.
+Both `npm run dev` and `npm run build` run `npm run generate` first (via
+`predev`/`prebuild`), which regenerates two build artefacts — neither is
+committed:
+
+- `util/nav.generated.json`, the header links, from `_nav/`
+- `public/sitemap.xml`, from the section pages and published posts
+
+Editing a file in `_nav/` while `next dev` is running needs a restart to show
+up in the nav bar, because the generated file is read at import time. The page
+content itself hot-reloads normally.
 
 ## Project structure
 
 ```
 pages/            Routes (Pages Router)
   index.js          Home
-  about.js          About
-  contact.js        Contact
+  [slug].js         Every top-level section page, built from _nav/
   posts/            Blog index + dynamic post pages ([slug].js)
-components/         Layout, header/footer, RecentPosts, Seo, StructuredData
-util/              Post loading/markdown helpers, siteMeta (SEO source of truth)
+components/         Layout, header, NavPage, RecentPosts, Seo, StructuredData
+util/              Content loaders, navPages, siteMeta (SEO source of truth)
+_nav/              The top-level pages and the nav bar, written via /admin
 _posts/            Blog posts (Markdown + frontmatter), written via /admin
 _recipes/          Recipes, same shape as posts but undated
 docs/              Client-facing guide to the editor
 public/            Static assets (logo, favicon, robots.txt); admin/ is the CMS
-scripts/           Build-time sitemap generator, static server + font cache for tests
+scripts/           Build-time nav + sitemap generators, static server for tests
 styles/            CSS modules + globals
 tests/visual/      Playwright screenshot tests and their committed baselines
 ```
+
+## Section pages (`_nav/`)
+
+The top-level pages — About, Contact, and the six program pages — are one
+Markdown file each in `_nav/`, built by `pages/[slug].js`. There is no file
+under `pages/` per section, and adding one back for a section would break it:
+a real file always beats the dynamic route, silently. `scripts/generate-nav.mjs`
+turns that into a build failure rather than a missing page, and refuses the
+handful of slugs that are spoken for (`posts`, `recipes`, `admin`, `404`,
+`index`, `sitemap`).
+
+The filename is the URL, which is why the CMS cannot create or delete these —
+a slug is permanent once it is linked to and indexed. Adding or removing a
+section is a maintainer job; everything else about one is client-editable.
+
+Frontmatter drives the page's structure: `in_nav` decides whether it appears in
+the header, `order` where, and `schedule` / `store_link` / `contact_details`
+switch on the structured blocks. The address and phone in that last one come
+from `util/siteMeta.js`, never from the Markdown — that is issue #9's lesson,
+and a CMS that invited the client to retype the address on eight pages would be
+the same bug with a better interface.
+
+`in_nav: false` is not the same as unpublished. The six program pages are live
+at their URLs and in the sitemap; they are simply not advertised in the header
+until their copy is signed off. Flipping one on is a CMS edit, not a commit.
 
 ## Upcoming events (Google Calendar)
 
@@ -154,7 +190,7 @@ preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
 
 [Sveltia CMS](https://sveltiacms.app) runs at `/admin` on the deployed site. It
 is a writing interface over this repo: entries are saved as Markdown in
-`_posts/` and `_recipes/` and committed to **`publish`**, a content-only branch
+`_nav/`, `_posts/` and `_recipes/` and committed to **`publish`**, a content-only branch
 that Netlify builds as a preview. Content stays in git — the CMS is a front end
 onto it, not a separate store, so it can be removed at any time and every post
 remains a file in this repo.
@@ -301,14 +337,47 @@ broke." Look at the diff in the report first. If the new rendering is what you
 wanted, regenerate the baselines and commit them as part of the same change,
 so the diff of the PR shows the visual change alongside the CSS that caused it.
 
-**Regenerate in CI, not locally.** Pixel comparison is only meaningful when the
+**Never regenerate on the host.** Pixel comparison is only meaningful when the
 renderer is identical, and a Mac renders text differently from the Linux
-container CI uses. Go to **Actions → Refresh screenshot baselines → Run
-workflow**, pick your branch, say why, and it pushes the updated PNGs to that
-branch. `npm run test:visual:update` is the same operation for anyone already
-working inside `mcr.microsoft.com/playwright:v1.56.1-noble` — the image pinned
-in both workflows, which must stay in step with the `@playwright/test` version
-in `package.json`.
+container CI uses. The trap is that `--update-snapshots` rewrites *every*
+baseline that differs, not only the ones you meant to change — so rebaselining
+six pages on a Mac also silently rewrites pages you never touched, and CI goes
+red on all of them. Measured on this repo: `/404` renders 1037 pixels different
+outside the image, on a page nothing had touched.
+
+Two ways to do it correctly.
+
+**Locally, through Docker** — the everyday route:
+
+```bash
+npm run baseline          # regenerate baselines in the pinned container
+npm run baseline:check    # run the comparison there, without rewriting anything
+```
+
+`scripts/visual-container.mjs` mounts the working tree into
+`mcr.microsoft.com/playwright:v1.56.1-noble` and runs `test:visual:update`
+inside it, so the host OS stops mattering. It masks `node_modules` with a
+container-only volume, so the Linux install does not overwrite your native
+binaries and break `npm run dev`; caches npm downloads in a named volume so
+repeat runs are quick; and hands ownership back on Linux, where the container
+would otherwise leave root-owned PNGs. Extra arguments pass through —
+`npm run baseline:check -- --project=desktop`. Set `VISUAL_CONTAINER_PRINT=1`
+to print the `docker run` command instead of executing it.
+
+Run `npm run baseline:check` before pushing and confirm it is green, then check
+`git status`: only the pages you actually changed should appear. Anything else
+in that diff means the renderer disagreed and is worth stopping for.
+
+**In CI** — when Docker is not available: **Actions → Refresh screenshot
+baselines → Run workflow**, pick your branch, say why, and it pushes the updated
+PNGs to that branch. Note that GitHub only offers `workflow_dispatch` workflows
+that exist on the **default branch**, so this is unavailable while
+`visual-baselines.yml` lives on `alpha` only.
+
+The image tag is derived from the installed `@playwright/test` rather than
+written into the script, and `util/playwrightImage.test.js` fails if either
+workflow drifts from it — so bumping the dependency without updating the
+workflows is caught by `npm test` rather than by a confusing rebaseline later.
 
 ### What makes the screenshots reproducible
 
