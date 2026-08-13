@@ -1,58 +1,76 @@
 import fs from "fs";
 import { join } from "path";
 import matter from "gray-matter";
+import {
+  publishableSlugs,
+  listContentDir,
+  contentDirsFromEnv,
+  toIsoDate,
+  byNewestFirst,
+} from "./contentFiles.mjs";
 
-const POSTS_DIR = join(process.cwd(), "_posts");
+/** Resolved per call, so CONTENT_FIXTURE_DIR is read at build time. */
+const postsDir = () => contentDirsFromEnv().postsDir;
 
 /**
  * Datatype for post data and metadata
  * @typedef {{
  *   title: string,
  *   author: string,
- *   pubdate: string,
+ *   pubdate: string|null,
  *   slug: string,
  *   content: string}} Post
  */
 
 /**
- * Given the url for the post, get the post info
- * @param {string} slug The filename of the post
+ * Given the url for the post, get the post info.
+ *
+ * `pubdate` comes back as an ISO string or null — see `toIsoDate` for why a
+ * malformed date degrades instead of throwing.
+ *
+ * @param {string} slug The filename of the post, without extension
+ * @param {string} [dir] Directory to read from; overridable for tests
  * @returns {Post} post metadata
  */
-export function getPostForSlug(slug) {
-  const filePath = join(POSTS_DIR, `${slug}.md`);
+export function getPostForSlug(slug, dir = postsDir()) {
+  const filePath = join(dir, `${slug}.md`);
   const fileContent = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(fileContent);
   const { pubdate, title, author } = data;
-  return { title, author, pubdate: pubdate.toJSON(), slug, content };
-}
-
-
-export function getAllPosts() {
-  const postFiles = fs.readdirSync(POSTS_DIR);
-  return postFiles
-    .map((name) => name.replace(/\.md$/, "")) //strip file extension
-    .map((slug) => getPostForSlug(slug));
+  return {
+    title: title ?? slug,
+    author: author ?? null,
+    pubdate: toIsoDate(pubdate),
+    slug,
+    content,
+  };
 }
 
 /**
+ * Every post that should become a page. Non-Markdown files and draft content
+ * are excluded here rather than only in the sitemap generator, so the two
+ * cannot disagree about what is published.
  *
+ * Whether drafts count is decided by the environment — see
+ * `includeDraftContent`. Production leaves them out; `next dev` and the
+ * screenshot tests build them.
+ *
+ * @param {string} [dir] Directory to read from; overridable for tests
+ * @param {{includeDrafts?: boolean}} [options]
+ * @returns {Post[]}
+ */
+export function getAllPosts(dir = postsDir(), options) {
+  return publishableSlugs(listContentDir(dir, fs), options).map((slug) =>
+    getPostForSlug(slug, dir)
+  );
+}
+
+/**
  * @param {number} limit The number of recent posts to return
- * @returns Array of post data, from most to least recent
+ * @param {string} [dir] Directory to read from; overridable for tests
+ * @param {{includeDrafts?: boolean}} [options]
+ * @returns {Post[]} Post data, from most to least recent
  */
-export function getRecentPosts(limit) {
-  return getAllPosts()
-    .sort((onePost, anotherPost) =>
-      new Date(onePost.pubdate) > new Date(anotherPost.pubdate) ? -1 : 1
-    )
-    .slice(0, limit);
-}
-
-/**
- *
- * @param {Post} post
- * @returns
- */
-export function getNextPost(post) {
-  return getAllPosts();
+export function getRecentPosts(limit, dir = postsDir(), options) {
+  return getAllPosts(dir, options).sort(byNewestFirst).slice(0, limit);
 }

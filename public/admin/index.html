@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Not a page of the site; keep it out of search results. robots.txt
+         disallows it too, and it is absent from the sitemap. -->
+    <meta name="robots" content="noindex" />
+    <title>Antioch Urban Growers — Editor</title>
+  </head>
+  <body>
+    <!--
+      Sveltia CMS is a single-page app served from a CDN, so there is nothing
+      to install or build — this file and config.yml beside it are the whole
+      integration. `public/` is copied into `out/` verbatim by the static
+      export, so this ends up at /admin/ on the deployed site.
+
+      Deliberately no `type="module"` and no stylesheet: the bundle is a
+      classic script and ships its own styles. Adding either breaks it.
+
+      The URL is unpinned, so the editor tracks upstream. If a release ever
+      breaks the editor, pin it by version — for example
+      https://unpkg.com/@sveltia/cms@1.2.3/dist/sveltia-cms.js — and note why
+      here, so the pin does not outlive its reason.
+    -->
+    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+  </body>
+</html>

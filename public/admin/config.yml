@@ -1,0 +1,245 @@
+# Sveltia CMS configuration. Read automatically from beside admin/index.html.
+#
+# This is the authoring interface: it writes Markdown into _posts/ and
+# _recipes/ and commits to the repo, so content still lives in git and the
+# site build is unchanged. The point is that nobody has to know that — the
+# editor generates the filename, enforces the frontmatter, and commits, which
+# is where hand-authoring through the GitHub web UI kept going wrong.
+#
+# The format is Netlify/Decap CMS's, which Sveltia is compatible with.
+
+backend:
+  name: github
+  repo: revslaughter/aug-blog
+  # Saving commits to `publish`, a branch that carries content and nothing
+  # else. It is cut from main and only ever receives commits from this editor,
+  # so merging it back into main is a content-only diff — publishing a post
+  # cannot drag half-finished code along with it.
+  #
+  # That is why it is not beta or alpha. Those are integration branches: they
+  # hold code that is not released yet, so merging one to publish a blog post
+  # would release that code too. Content and code move at different speeds and
+  # on different authority — the client decides when a post is ready, the
+  # maintainer decides when code ships — so they get different branches.
+  #
+  # Netlify builds `publish` as a branch deploy, which is where the author
+  # previews their work before asking for it to go live.
+  #
+  # This is also why there is no `publish_mode: editorial_workflow` here. That
+  # would open a pull request per entry and put a person back in the loop
+  # before the author can see anything, which is the bottleneck this setup
+  # exists to remove. The branch gives the same "look before it ships" safety
+  # without blocking the writing.
+  #
+  # Keeping this branch in step with main is automated — sync-publish.yml
+  # rebases it onto main on every push to main, so the preview runs production
+  # code rather than whatever shipped last release. It replays the entries
+  # saved here rather than re-cutting the branch over them, and its push is
+  # leased against the commit it started from, so an entry saved while it runs
+  # refuses the push instead of being overwritten. Once an entry has reached
+  # main it replays to nothing and drops out, leaving this branch equal to main.
+  branch: publish
+  commit_messages:
+    create: "Add {{collection}} “{{slug}}”"
+    update: "Update {{collection}} “{{slug}}”"
+    delete: "Delete {{collection}} “{{slug}}”"
+    uploadMedia: "Upload “{{path}}”"
+    deleteMedia: "Delete “{{path}}”"
+
+# Uploaded images are committed to the repo like any other content.
+# media_folder is where they land on disk; public_folder is the URL they are
+# referenced by, which is what gets written into the Markdown.
+media_folder: public/uploads
+public_folder: /uploads
+
+collections:
+  # The top-level pages — the things in the bar across the top of the site.
+  # Each one is a file in _nav/, built into a page by pages/[slug].js.
+  #
+  # create and delete are both off, deliberately. A page's filename is its web
+  # address and neither this editor nor anything else can rename it afterwards,
+  # so a page created here from a title like "Spring Plant Sale" would be stuck
+  # at /spring-plant-sale forever. Deleting is worse: the URL is live, printed
+  # on things, and indexed by Google, and removing the file 404s it with no way
+  # back. Adding and removing sections stays a maintainer job; everything about
+  # an existing one is editable here.
+  #
+  # To take a page out of the header without breaking its link, turn off
+  # "Show in the top menu" — the page stays up, it just stops being advertised.
+  - name: nav
+    label: Pages
+    label_singular: Page
+    description: >-
+      The main pages of the site and the menu across the top. Editing here
+      changes the page itself; "Show in the top menu" and "Menu order" control
+      whether and where it appears in the bar.
+    folder: _nav
+    create: false
+    delete: false
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}"
+    sortable_fields: [order, title]
+    fields:
+      - label: Page title
+        name: title
+        widget: string
+        required: true
+        hint: The big heading at the top of the page.
+      - label: Menu name
+        name: nav_label
+        widget: string
+        required: false
+        hint: >-
+          Shorter wording for the top menu, if the page title is long. Leave
+          empty to use the page title.
+      - label: Show in the top menu
+        name: in_nav
+        widget: boolean
+        required: false
+        default: false
+        hint: >-
+          Off means the page still exists and its link still works — it just is
+          not listed in the bar at the top. Turn it on when the wording is ready.
+      # The writing sits here, directly under the two settings that decide
+      # whether anyone sees the page, and above everything else. Editing copy is
+      # what this collection is for and what the client will open it to do —
+      # burying the editor under six settings fields makes the rarest task the
+      # most prominent one. A field named `body` is the document body, below the
+      # frontmatter.
+      #
+      # Both modes offered, rich text first. The rich-text surface edits a
+      # document tree rather than Markdown source, so pressing Enter there makes
+      # a paragraph — it has no way to express "a newline that is only
+      # whitespace", because that idea only exists in the source. Raw mode is
+      # where source line-wrapping is under your own control.
+      #
+      # Which matters because the rendering is CommonMark: a single newline is
+      # whitespace and a blank line starts a paragraph, so hard-wrapped source
+      # renders as flowing text. `util/processMarkdown.test.js` pins that.
+      - label: Page text
+        name: body
+        widget: markdown
+        required: false
+        modes: [rich_text, raw]
+        default_mode: rich_text
+        hint: The main wording of the page.
+      - label: Menu order
+        name: order
+        widget: number
+        required: true
+        value_type: int
+        step: 1
+        hint: >-
+          Lower numbers come first. They go up in tens so you can move a page
+          without renumbering the rest — to put something between 20 and 30,
+          give it 25.
+      - label: Search description
+        name: description
+        widget: text
+        required: true
+        hint: >-
+          One or two sentences. This is the grey text under the link when the
+          page comes up in a Google search. It does not appear on the page.
+      - label: Opening line
+        name: intro
+        widget: text
+        required: false
+        hint: Optional. Sits just under the heading, above everything else.
+      # The structured blocks. These are fields rather than something typed into
+      # the page text so that every section page presents the same information
+      # the same way.
+      - label: Times and dates
+        name: schedule
+        widget: list
+        required: false
+        label_singular: Row
+        summary: "{{fields.label}}: {{fields.value}}"
+        hint: >-
+          The small table of days and seasons near the top. Add a row per line
+          you want; leave empty for none.
+        fields:
+          - { label: Heading, name: label, widget: string, hint: "e.g. Season" }
+          - { label: Detail, name: value, widget: string, hint: "e.g. March – May" }
+      - label: Show the store link
+        name: store_link
+        widget: boolean
+        required: false
+        default: false
+        hint: Adds a "Visit the store" link near the bottom of the page.
+      - label: Show address and phone
+        name: contact_details
+        widget: boolean
+        required: false
+        default: false
+        hint: >-
+          Adds the farm's address and phone number. These are kept in one place
+          for the whole site, so they are always right and are not typed here.
+      - label: Small print
+        name: note
+        widget: text
+        required: false
+        hint: >-
+          The little italic line at the very bottom — good for "times change
+          each year, check back nearer the date".
+
+  - name: posts
+    label: Blog posts
+    label_singular: Blog post
+    description: >-
+      Posts appear on the blog at /posts, newest first. Saving publishes to the
+      preview site a few minutes later; it reaches the live site when the
+      publish branch is merged.
+    folder: _posts
+    create: true
+    # Derived from the title, so filenames are always URL-safe. This is the
+    # setting that prevents "_posts/Hello world" — a filename with a space and
+    # no extension, which used to fail the build outright.
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}} — {{pubdate}}"
+    sortable_fields: [pubdate, title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      # Written as a bare YYYY-MM-DD date, which is what the loader and the
+      # sitemap generator expect. They tolerate other shapes now, but there is
+      # no reason to emit one.
+      - label: Publish date
+        name: pubdate
+        widget: datetime
+        required: true
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
+        time_format: false
+      # A field named `body` is the document body, below the frontmatter.
+      # Both modes, as on the Pages collection — see the note there.
+      - label: Post
+        name: body
+        widget: markdown
+        required: true
+        modes: [rich_text, raw]
+        default_mode: rich_text
+
+  - name: recipes
+    label: Recipes
+    label_singular: Recipe
+    description: Recipes appear at /recipes.
+    folder: _recipes
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}"
+    sortable_fields: [title, author]
+    fields:
+      - { label: Title, name: title, widget: string, required: true }
+      - { label: Author, name: author, widget: string, required: true }
+      - label: Recipe
+        name: body
+        widget: markdown
+        required: true
+        modes: [rich_text, raw]
+        default_mode: rich_text

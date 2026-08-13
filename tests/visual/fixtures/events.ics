@@ -1,0 +1,71 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Antioch Urban Growers//Screenshot fixtures//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:AUG screenshot fixtures
+X-WR-TIMEZONE:America/Chicago
+BEGIN:VEVENT
+UID:fixture-plant-sale@aug.test
+DTSTAMP:20260401T120000Z
+DTSTART:20260507T140000Z
+DTEND:20260507T190000Z
+SUMMARY:[PUBLIC] Spring Plant Sale Opening Day
+LOCATION:2727 NE 44th St\, Kansas City\, MO 64117
+DESCRIPTION:Tomato starts\, sweet peppers\, basil and a full table of nativ
+ e perennials. Bring a box.
+URL:https://antiochurbang.square.site
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-compost-workshop@aug.test
+DTSTAMP:20260401T120000Z
+DTSTART:20260514T230000Z
+DTEND:20260515T003000Z
+SUMMARY:[PUBLIC] Compost Program Drop-In
+LOCATION:The Growers Lot
+DESCRIPTION:New to composting? Start here. We will walk the whole pile toge
+ ther — what goes in\, what absolutely does not\, how to tell when it is coo
+ king\, and how to fix one that has gone sour and slimy. You will leave with
+  a bucket\, a printed cheat sheet for the fridge door\, and a standing invi
+ tation to bring your kitchen scraps by any Thursday evening through the sum
+ mer. No experience needed and nothing to buy. Questions beforehand? Reach u
+ s at https://antiochurbang.square.site or say hello with #antiochurbangrowe
+ rs.
+URL:https://www.antiochurbangrowers.com/compost
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-faire@aug.test
+DTSTAMP:20260401T120000Z
+DTSTART;VALUE=DATE:20260523
+DTEND;VALUE=DATE:20260524
+SUMMARY:[PUBLIC] Summer Faire
+LOCATION:Antioch Park
+DESCRIPTION:All-day market\, live music and the pie contest.
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-mindful-movement@aug.test
+DTSTAMP:20260401T120000Z
+DTSTART:20260506T120000Z
+DTEND:20260506T130000Z
+RRULE:FREQ=WEEKLY;BYDAY=WE
+SUMMARY:[PUBLIC] Mindful Movement in the Garden
+LOCATION:Back Field
+DESCRIPTION:Gentle hour in the beds. Mats provided.
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-private-meeting@aug.test
+DTSTAMP:20260401T120000Z
+DTSTART:20260508T160000Z
+DTEND:20260508T170000Z
+SUMMARY:Board meeting (not for the website)
+DESCRIPTION:Must never appear on the site — no [PUBLIC] prefix.
+END:VEVENT
+BEGIN:VEVENT
+UID:fixture-already-happened@aug.test
+DTSTAMP:20260301T120000Z
+DTSTART:20260410T140000Z
+DTEND:20260410T160000Z
+SUMMARY:[PUBLIC] Seed Swap (already happened)
+DESCRIPTION:Before the frozen CALENDAR_NOW\, so it must be filtered out.
+END:VEVENT
+END:VCALENDAR

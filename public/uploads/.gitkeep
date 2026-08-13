@@ -1,0 +1,3 @@
+Images uploaded through the CMS at /admin land here and are committed to the
+repo. Referenced in Markdown as /uploads/<filename>; see public_folder in
+admin/config.yml.
