@@ -23,6 +23,7 @@
 
 # generated at build time (prebuild)
 /public/sitemap.xml
+/util/nav.generated.json
 
 # production
 /build

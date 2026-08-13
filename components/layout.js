@@ -1,21 +1,21 @@
 import Header from "./header";
 import styles from "./layout.module.css";
+import nav from "../util/nav.generated.json";
 
-// Nav for the section overhaul in GitHub issue #13. Only sections whose copy
-// is final are linked — About and Contact — so the rest of the site stops
-// being reachable by sitemap alone.
+// The nav is authored in `_nav/` and compiled to nav.generated.json by
+// scripts/generate-nav.mjs, which runs before both `dev` and `build`. Layout
+// ships to the browser, so it cannot read _nav/ itself — see the header comment
+// on that script for why this is a generated file rather than page props.
 //
-// Still to add, in the annual program flow the client described (Spring Plant
-// Sale -> Produce Sale -> Summer Faire, then the two weekly series, then the
-// year-round Compost Program): /plant-sale, /produce-sale, /summer-faire,
-// /workshops, /mindful-movement, /compost. Their copy is still placeholder.
-// /posts and /recipes are held back too — both indexes currently list only
-// their template files.
-const NAV_LINKS = [
-	{ title: "Home", href: "/" },
-	{ title: "About", href: "/about" },
-	{ title: "Contact", href: "/contact" },
-];
+// Which sections appear here is the `in_nav` switch on each Markdown file, set
+// from the CMS. That replaces the hand-maintained list this file used to carry:
+// the nav held only About and Contact because the other sections' copy was
+// still placeholder, and every change to that needed a commit. The client can
+// now write the copy and turn the section on themselves.
+//
+// Home is prepended in `navLinks` rather than authored, so it cannot be
+// reordered or switched off.
+const NAV_LINKS = nav.links;
 
 export default function Layout({ children }) {
   return (

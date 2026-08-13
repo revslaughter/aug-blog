@@ -48,6 +48,120 @@ media_folder: public/uploads
 public_folder: /uploads
 
 collections:
+  # The top-level pages — the things in the bar across the top of the site.
+  # Each one is a file in _nav/, built into a page by pages/[slug].js.
+  #
+  # create and delete are both off, deliberately. A page's filename is its web
+  # address and neither this editor nor anything else can rename it afterwards,
+  # so a page created here from a title like "Spring Plant Sale" would be stuck
+  # at /spring-plant-sale forever. Deleting is worse: the URL is live, printed
+  # on things, and indexed by Google, and removing the file 404s it with no way
+  # back. Adding and removing sections stays a maintainer job; everything about
+  # an existing one is editable here.
+  #
+  # To take a page out of the header without breaking its link, turn off
+  # "Show in the top menu" — the page stays up, it just stops being advertised.
+  - name: nav
+    label: Pages
+    label_singular: Page
+    description: >-
+      The main pages of the site and the menu across the top. Editing here
+      changes the page itself; "Show in the top menu" and "Menu order" control
+      whether and where it appears in the bar.
+    folder: _nav
+    create: false
+    delete: false
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    summary: "{{title}}"
+    sortable_fields: [order, title]
+    fields:
+      - label: Page title
+        name: title
+        widget: string
+        required: true
+        hint: The big heading at the top of the page.
+      - label: Menu name
+        name: nav_label
+        widget: string
+        required: false
+        hint: >-
+          Shorter wording for the top menu, if the page title is long. Leave
+          empty to use the page title.
+      - label: Show in the top menu
+        name: in_nav
+        widget: boolean
+        required: false
+        default: false
+        hint: >-
+          Off means the page still exists and its link still works — it just is
+          not listed in the bar at the top. Turn it on when the wording is ready.
+      - label: Menu order
+        name: order
+        widget: number
+        required: true
+        value_type: int
+        step: 1
+        hint: >-
+          Lower numbers come first. They go up in tens so you can move a page
+          without renumbering the rest — to put something between 20 and 30,
+          give it 25.
+      - label: Search description
+        name: description
+        widget: text
+        required: true
+        hint: >-
+          One or two sentences. This is the grey text under the link when the
+          page comes up in a Google search. It does not appear on the page.
+      - label: Opening line
+        name: intro
+        widget: text
+        required: false
+        hint: Optional. Sits just under the heading, above everything else.
+      # The structured blocks. These are fields rather than something typed into
+      # the page text so that every section page presents the same information
+      # the same way.
+      - label: Times and dates
+        name: schedule
+        widget: list
+        required: false
+        label_singular: Row
+        summary: "{{fields.label}}: {{fields.value}}"
+        hint: >-
+          The small table of days and seasons near the top. Add a row per line
+          you want; leave empty for none.
+        fields:
+          - { label: Heading, name: label, widget: string, hint: "e.g. Season" }
+          - { label: Detail, name: value, widget: string, hint: "e.g. March – May" }
+      - label: Show the store link
+        name: store_link
+        widget: boolean
+        required: false
+        default: false
+        hint: Adds a "Visit the store" link near the bottom of the page.
+      - label: Show address and phone
+        name: contact_details
+        widget: boolean
+        required: false
+        default: false
+        hint: >-
+          Adds the farm's address and phone number. These are kept in one place
+          for the whole site, so they are always right and are not typed here.
+      - label: Small print
+        name: note
+        widget: text
+        required: false
+        hint: >-
+          The little italic line at the very bottom — good for "times change
+          each year, check back nearer the date".
+      # A field named `body` is the document body, below the frontmatter.
+      - label: Page text
+        name: body
+        widget: markdown
+        required: false
+        hint: The main wording of the page.
+
   - name: posts
     label: Blog posts
     label_singular: Blog post

@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "generate": "node scripts/generate-nav.mjs && node scripts/generate-sitemap.mjs",
+    "predev": "npm run generate",
     "dev": "next dev",
-    "prebuild": "node scripts/generate-sitemap.mjs",
+    "prebuild": "npm run generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

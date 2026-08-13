@@ -14,6 +14,8 @@ You have an editor built into the website. You can:
 
 - Write a blog post and put it on the site
 - Add a recipe
+- Rewrite any of the main pages — About, Contact, the Plant Sale and the rest
+- Decide which of those pages appear in the menu across the top, and in what order
 - Add pictures
 - Change or delete something you posted earlier
 
@@ -115,6 +117,75 @@ numbers by hand; they will line up properly on the page.
 
 ---
 
+## The main pages
+
+**Pages** in the left-hand list is the other half of the editor. These are the
+pages the whole site is built around — About, Contact, the Plant Sale, the
+Produce Sale, the Summer Faire, the Workshops, Mindful Movement and Compost.
+Every one of them is yours to write.
+
+Click **Pages**, then the page you want. You will not see a **New Page** button
+and there is no **Delete**; that is deliberate, and the reason is at the bottom
+of this section.
+
+### The boxes
+
+| Box | What to put |
+| --- | ----------- |
+| **Page title** | The big heading at the top of the page. |
+| **Menu name** | Shorter wording for the top menu, if the title is long — "Workshops" for a page called "Sustainable Living Workshops". Leave it empty to use the page title. |
+| **Show in the top menu** | Whether the page is listed in the bar across the top. See below. |
+| **Menu order** | Where it sits in that bar. Lower numbers come first. |
+| **Search description** | One or two sentences. This is the grey text under the link when the page comes up in a Google search — it does not appear on the page itself. Worth writing well. |
+| **Opening line** | Optional. One line just under the heading. |
+| **Times and dates** | The small table near the top — "Season / March – May". Add a row per line you want. |
+| **Show the store link** | Adds a "Visit the store" link near the bottom. |
+| **Show address and phone** | Adds the farm's address and phone number. |
+| **Small print** | The little italic line at the very bottom — good for "times shift each year, check back nearer the date". |
+| **Page text** | The main wording. |
+
+You do not have to fill all of these in. A page with just a title, a search
+description and some text is a perfectly good page.
+
+### Showing a page in the top menu
+
+**Show in the top menu** is the switch for the bar across the top of the site.
+
+Right now only **About** and **Contact** are switched on. The other six pages
+have sample wording in them — a rough draft, written to show you the shape of
+the thing, and meant to be replaced with yours.
+
+So the way to bring a page out is:
+
+1. Open it and rewrite the text as you want it.
+2. Save, and look at it on the preview.
+3. When you are happy, turn **Show in the top menu** on and save again.
+
+Turning it off later does not delete anything. The page stays up and its link
+keeps working — it just stops being listed at the top. That is the safe way to
+retire a page you are not using this season.
+
+### Changing the order of the menu
+
+**Menu order** is a number, and lower numbers come first. They currently go up
+in tens — 10, 20, 30 — so there is room to move something without renumbering
+everything else. To put a page between 20 and 30, give it 25.
+
+### Why you cannot add or delete these pages
+
+A page's web address is fixed when it is created, and it cannot be changed
+afterwards. If a page called "Spring Plant Sale" were made here it would live at
+`/spring-plant-sale` permanently, even if you later renamed it — which is the
+kind of thing you only notice a year later on a printed flyer.
+
+Deleting is worse: these addresses are on the live site, indexed by Google, and
+possibly printed on something. Removing a page breaks those links for good.
+
+So adding and removing pages is left to `[FILL IN: your name]` — ask, and it
+takes a few minutes. Everything *on* an existing page is yours.
+
+---
+
 ## Changing or removing something
 
 1. Sign in to the editor.
@@ -124,6 +195,9 @@ numbers by hand; they will line up properly on the page.
 
 Deleting takes it off the preview straight away, and off the live site the next
 time `[FILL IN: your name]` publishes.
+
+The main pages under **Pages** work the same way for changes, but they have no
+**Delete** — see "Why you cannot add or delete these pages" above.
 
 ---
 

@@ -52,8 +52,10 @@ See the README's "The editor (`/admin`)" section for the detail.
 ## Now
 
 - [ ] **Program page copy.** Six pages — plant sale, produce sale, summer
-      faire, workshops, mindful movement, compost — still carry placeholder
-      text, which is why they are not in the nav. Needs the client.
+      faire, workshops, mindful movement, compost — carry sample copy written
+      to show the shape of the page, which is why they are still `in_nav: false`.
+      No longer blocked on a developer: the client rewrites them under **Pages**
+      in the editor and turns each one on when it reads right.
 - [ ] **Promote `alpha` through `beta` to `main`.** Everything since June sits
       on `alpha` — hardening, screenshot tests, the About copy and the nav.
       `beta` and `main` are both still at `be76b73`; PR #38 is the promotion to
@@ -65,8 +67,10 @@ See the README's "The editor (`/admin`)" section for the detail.
       `workflow_dispatch` workflows that exist on the default branch, and it is
       on `alpha` only. Lands with the merge above; worth confirming afterwards,
       because it is the documented way to refresh baselines.
-- [ ] **Nav.** Currently Home / About / Contact. Add the program pages as their
-      copy lands, and `/posts` and `/recipes` once there is content.
+- [ ] **`/posts` and `/recipes` in the nav.** The section pages are now CMS-
+      controlled, but these two are code routes, not `_nav/` entries, so they
+      still need adding to the header by hand once there is content to show.
+      Worth deciding whether they become `_nav/` entries that link out instead.
 - [ ] **Embeds in posts.** Video, maps and Facebook posts do not work: post
       bodies go through `dangerouslySetInnerHTML` and are only safe because
       remark-html drops raw HTML. Add embeds as a constrained component — a
@@ -132,3 +136,8 @@ Home / About / Contact are reachable by people rather than only by crawlers.
 
 **The editor** (#37) — Sveltia CMS at `/admin`, writing Markdown to `publish`.
 Content stays in git; no dependency, no build step, no recurring cost.
+
+**The section pages in the CMS** — About, Contact and the six program pages are
+Markdown in `_nav/`, built by one `pages/[slug].js` rather than a file each. The
+client writes the copy and decides what appears in the top menu, and in what
+order, without a commit.
