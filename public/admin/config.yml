@@ -11,17 +11,29 @@
 backend:
   name: github
   repo: revslaughter/aug-blog
-  # Saving commits to beta, not main. Netlify builds beta as a preview, so the
-  # author writes, saves, and sees the result on the preview site a few minutes
-  # later — no review step and nobody to wait for. Going live is a separate,
-  # deliberate act: merge beta into main.
+  # Saving commits to `publish`, a branch that carries content and nothing
+  # else. It is cut from main and only ever receives commits from this editor,
+  # so merging it back into main is a content-only diff — publishing a post
+  # cannot drag half-finished code along with it.
   #
-  # This is why there is no `publish_mode: editorial_workflow` here. That would
-  # open a pull request per entry and put a person back in the loop before the
-  # author can see anything, which is the bottleneck this setup exists to
-  # remove. The beta branch gives the same "look before it ships" safety
+  # That is why it is not beta or alpha. Those are integration branches: they
+  # hold code that is not released yet, so merging one to publish a blog post
+  # would release that code too. Content and code move at different speeds and
+  # on different authority — the client decides when a post is ready, the
+  # maintainer decides when code ships — so they get different branches.
+  #
+  # Netlify builds `publish` as a branch deploy, which is where the author
+  # previews their work before asking for it to go live.
+  #
+  # This is also why there is no `publish_mode: editorial_workflow` here. That
+  # would open a pull request per entry and put a person back in the loop
+  # before the author can see anything, which is the bottleneck this setup
+  # exists to remove. The branch gives the same "look before it ships" safety
   # without blocking the writing.
-  branch: beta
+  #
+  # After `publish` is merged into main, re-cut it from main so it never drifts:
+  #   git checkout -B publish origin/main && git push --force-with-lease
+  branch: publish
   commit_messages:
     create: "Add {{collection}} “{{slug}}”"
     update: "Update {{collection}} “{{slug}}”"
@@ -41,8 +53,8 @@ collections:
     label_singular: Blog post
     description: >-
       Posts appear on the blog at /posts, newest first. Saving publishes to the
-      preview site a few minutes later; it goes to the live site when beta is
-      merged into main.
+      preview site a few minutes later; it reaches the live site when the
+      publish branch is merged.
     folder: _posts
     create: true
     # Derived from the title, so filenames are always URL-safe. This is the

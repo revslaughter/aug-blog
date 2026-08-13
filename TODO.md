@@ -192,10 +192,18 @@ main (production)
 - General pages (contact/about improvements)
 
 **Tech Debt:**
-- Sveltia CMS at `/admin` is the authoring interface, writing to `beta`. It
-  still needs a GitHub OAuth app registered and installed in Netlify before
-  anyone can sign in — see the README. Until that is done, only token sign-in
-  works.
+- Sveltia CMS at `/admin` is the authoring interface, writing to `publish`.
+  Two things are still outstanding before anyone can use it, both outside the
+  repo and both covered in the README:
+  - the `publish` branch does not exist yet — cut it from `main` and add a
+    Netlify branch deploy for it
+  - a GitHub OAuth app needs registering and installing in Netlify; until then
+    only token sign-in works
+- The first published post will fail the Screenshots check: `/posts` changes
+  from its empty state to a list, and every later post changes it again. The
+  screenshot suite already solves this shape of problem for the event feed by
+  building against a fixture calendar; doing the same for content would stop
+  publishing from turning CI red.
 - Nav lists only Home/About/Contact. The six program pages still have
   placeholder copy, and `/posts` and `/recipes` have no content yet.
 - `_posts/` and `_recipes/` are empty, so both indexes render an empty state.

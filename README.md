@@ -153,10 +153,10 @@ preview it *with* drafts, `INCLUDE_DRAFT_CONTENT=true npm run build`.
 
 [Sveltia CMS](https://sveltiacms.app) runs at `/admin` on the deployed site. It
 is a writing interface over this repo: entries are saved as Markdown in
-`_posts/` and `_recipes/` and committed to **`beta`**, which Netlify builds as
-the preview site. Content stays in git — the CMS is a front end onto it, not a
-separate store, so it can be removed at any time and every post remains a file
-in this repo.
+`_posts/` and `_recipes/` and committed to **`publish`**, a content-only branch
+that Netlify builds as a preview. Content stays in git — the CMS is a front end
+onto it, not a separate store, so it can be removed at any time and every post
+remains a file in this repo.
 
 It exists because publishing by hand meant a GitHub account, a branch, a pull
 request, an exact filename, and correct YAML. The editor generates the
@@ -192,22 +192,48 @@ ever leaves Netlify.
 
 ### Publishing behaviour
 
-Saving commits to **`beta`**, which Netlify builds as the preview site. So the
-author writes, saves, and sees their work on the preview a few minutes later,
-without needing anybody's help and without it being live.
+Saving commits to **`publish`** — a branch that carries content and nothing
+else. Netlify builds it as a branch deploy, so the author writes, saves, and
+sees their work on that preview a few minutes later, without needing anybody's
+help and without it being live.
 
-Going live is a separate, deliberate act: merge `beta` into `main`.
+Going live is a separate, deliberate act: merge `publish` into `main`.
+
+**Why not `beta` or `alpha`.** Those are integration branches — they hold code
+that is not released yet. Merging one of them to publish a blog post would
+release that code at the same time. `publish` is cut from `main` and only ever
+receives commits from the editor, so merging it back is a content-only diff.
+Content and code move at different speeds and on different authority: the
+client decides when a post is ready, you decide when code ships.
 
 There is no review step inside the editor by design — that step is what left
-two client-written posts sitting unmerged. `beta` provides the "look before it
-ships" safety instead, without blocking the writing. If you do want review in
-the editor, add `publish_mode: editorial_workflow` to the `backend` block in
+two client-written posts sitting unmerged. The branch provides the "look before
+it ships" safety instead, without blocking the writing. If you do want review
+in the editor, add `publish_mode: editorial_workflow` to the `backend` block in
 `config.yml`; the CMS then opens a pull request per entry and grows a
 draft → in review → ready workflow, and somebody has to merge each one.
 
-> **`beta` must be current.** The editor is served from whatever is deployed,
-> and it writes to `beta`. Merge `alpha` into `beta` before handing `/admin` to
-> anyone, or they will be editing against stale code.
+#### Setting up the branch
+
+Not yet created — do this before handing `/admin` to anyone:
+
+```bash
+git fetch origin
+git checkout -B publish origin/main
+git push -u origin publish
+```
+
+Then in Netlify, add `publish` to the branches that get deploys (Site
+configuration → Build & deploy → Branch deploys) so the author has somewhere to
+preview.
+
+After each `publish` → `main` merge, re-cut the branch so it never drifts from
+production:
+
+```bash
+git checkout -B publish origin/main
+git push --force-with-lease
+```
 
 ## Screenshot tests
 
@@ -318,6 +344,10 @@ Site-wide SEO is centralized:
 
 ## Branching & deployment
 
+Two tracks, meeting only at `main`.
+
+**Code** moves through integration:
+
 ```
 feature/*  →  alpha  →  beta  →  main
 ```
@@ -326,6 +356,20 @@ feature/*  →  alpha  →  beta  →  main
 - **`alpha`** — integration branch where features are merged and conflicts resolved
 - **`beta`** — client preview (Netlify deploy preview)
 - **`main`** — production (deploys to the live site)
+
+**Content** does not:
+
+```
+main  →  publish  →  main
+```
+
+- **`publish`** — cut from `main`, receives commits only from the editor at
+  `/admin`, and is merged back into `main` to go live. Re-cut from `main` after
+  each merge.
+
+Keeping them apart is the point: `publish` never carries unreleased code, so
+putting a blog post live cannot ship a half-finished feature with it, and a
+code release cannot be held up waiting on content.
 
 CI (GitHub Actions) runs lint, build, unit tests, and the screenshot tests on
 every push; a non-blocking `npm audit` reports advisories. Netlify builds with `npm ci && npm run build` and
