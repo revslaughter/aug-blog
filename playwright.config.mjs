@@ -120,6 +120,13 @@ export default defineConfig({
       // See tests/visual/fixtures/README.md.
       CALENDAR_FIXTURE_ICS: "tests/visual/fixtures/events.ics",
       CALENDAR_NOW: "2026-05-04T14:00:00Z",
+      // Posts and recipes come from a fixture rather than _posts/ and
+      // _recipes/, for the same reason the calendar does: the blog index lists
+      // real content, so every post the client publishes would change its
+      // baseline and turn this check red on a commit that touched no code.
+      // Against the fixture these baselines move only when the layout does.
+      // See tests/visual/fixtures/README.md.
+      CONTENT_FIXTURE_DIR: "tests/visual/fixtures/content",
       // Draft content is deliberately left off, so these screenshots describe
       // exactly what deploys. It also keeps the run deterministic: a scratch
       // `test-*` draft in someone's working tree would otherwise appear on the

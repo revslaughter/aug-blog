@@ -259,6 +259,7 @@ tests/visual/
   fixtures.mjs          Serves fonts offline, blocks all other network access
   stabilize.mjs         Waits out lazy images, webfonts and transitions
   fixtures/events.ics   The fixed calendar the homepage is built against
+  fixtures/content/     The fixed posts and recipes the blog is built against
   font-cache/           Captured Google Fonts responses (see below)
   __screenshots__/      The baselines, one directory per viewport
 ```
@@ -323,6 +324,14 @@ Two sources of drift are deliberately removed:
 - **Build timezone.** `formatDisplayDate` already renders post dates from UTC
   parts, so this is belt and braces: the test build also pins `TZ=UTC` to catch
   anything that reaches for the ambient zone later.
+- **Published content.** The blog and recipe indexes list real posts, so every
+  post the client publishes would change `posts-index`'s baseline and fail this
+  check on a commit that touched no code. The test build points
+  `CONTENT_FIXTURE_DIR` at `tests/visual/fixtures/content`, so posts and
+  recipes come from a fixture and these baselines move only when the layout
+  does. It also buys back coverage: `_posts/` and `_recipes/` are empty in the
+  repo, so without it the article and recipe layouts have no screenshots at
+  all.
 - **Draft content.** The test build sets `INCLUDE_DRAFT_CONTENT=false`, so a
   scratch `test-*` draft in your working tree can't appear on the blog index
   and fail the comparison on your machine but nowhere else.

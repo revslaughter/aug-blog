@@ -1,5 +1,6 @@
 import {
   listContentDir,
+  contentDirsFromEnv,
   publishableSlugs,
   includeDraftContent,
   isDraftSlug,
@@ -55,6 +56,43 @@ describe("publishableSlugs", () => {
 
   it("returns nothing for a directory holding only a template", () => {
     expect(publishableSlugs(["template.md"])).toEqual([]);
+  });
+});
+
+describe("contentDirsFromEnv", () => {
+  it("reads the repo's own content directories by default", () => {
+    expect(contentDirsFromEnv({}, "/repo")).toEqual({
+      postsDir: "/repo/_posts",
+      recipesDir: "/repo/_recipes",
+    });
+  });
+
+  // The screenshot tests build against fixture content so the blog index
+  // baseline does not move every time the client publishes a post.
+  it("redirects both directories at a fixture", () => {
+    expect(
+      contentDirsFromEnv(
+        { CONTENT_FIXTURE_DIR: "tests/visual/fixtures/content" },
+        "/repo"
+      )
+    ).toEqual({
+      postsDir: "/repo/tests/visual/fixtures/content/_posts",
+      recipesDir: "/repo/tests/visual/fixtures/content/_recipes",
+    });
+  });
+
+  it("accepts an absolute fixture path", () => {
+    expect(contentDirsFromEnv({ CONTENT_FIXTURE_DIR: "/tmp/fx" }, "/repo"))
+      .toEqual({ postsDir: "/tmp/fx/_posts", recipesDir: "/tmp/fx/_recipes" });
+  });
+
+  // Netlify sets empty strings for unset build variables; that must not be
+  // read as "there is a fixture directory at the repo root".
+  it("ignores an empty value", () => {
+    expect(contentDirsFromEnv({ CONTENT_FIXTURE_DIR: "" }, "/repo")).toEqual({
+      postsDir: "/repo/_posts",
+      recipesDir: "/repo/_recipes",
+    });
   });
 });
 

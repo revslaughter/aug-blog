@@ -4,11 +4,13 @@ import matter from "gray-matter";
 import {
   publishableSlugs,
   listContentDir,
+  contentDirsFromEnv,
   toIsoDate,
   byNewestFirst,
 } from "./contentFiles.mjs";
 
-const POSTS_DIR = join(process.cwd(), "_posts");
+/** Resolved per call, so CONTENT_FIXTURE_DIR is read at build time. */
+const postsDir = () => contentDirsFromEnv().postsDir;
 
 /**
  * Datatype for post data and metadata
@@ -30,7 +32,7 @@ const POSTS_DIR = join(process.cwd(), "_posts");
  * @param {string} [dir] Directory to read from; overridable for tests
  * @returns {Post} post metadata
  */
-export function getPostForSlug(slug, dir = POSTS_DIR) {
+export function getPostForSlug(slug, dir = postsDir()) {
   const filePath = join(dir, `${slug}.md`);
   const fileContent = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(fileContent);
@@ -57,7 +59,7 @@ export function getPostForSlug(slug, dir = POSTS_DIR) {
  * @param {{includeDrafts?: boolean}} [options]
  * @returns {Post[]}
  */
-export function getAllPosts(dir = POSTS_DIR, options) {
+export function getAllPosts(dir = postsDir(), options) {
   return publishableSlugs(listContentDir(dir, fs), options).map((slug) =>
     getPostForSlug(slug, dir)
   );
@@ -69,6 +71,6 @@ export function getAllPosts(dir = POSTS_DIR, options) {
  * @param {{includeDrafts?: boolean}} [options]
  * @returns {Post[]} Post data, from most to least recent
  */
-export function getRecentPosts(limit, dir = POSTS_DIR, options) {
+export function getRecentPosts(limit, dir = postsDir(), options) {
   return getAllPosts(dir, options).sort(byNewestFirst).slice(0, limit);
 }

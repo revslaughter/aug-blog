@@ -199,17 +199,13 @@ main (production)
     Netlify branch deploy for it
   - a GitHub OAuth app needs registering and installing in Netlify; until then
     only token sign-in works
-- The first published post will fail the Screenshots check: `/posts` changes
-  from its empty state to a list, and every later post changes it again. The
-  screenshot suite already solves this shape of problem for the event feed by
-  building against a fixture calendar; doing the same for content would stop
-  publishing from turning CI red.
+- Publishing no longer touches the screenshot baselines: the visual tests build
+  against `tests/visual/fixtures/content` rather than `_posts/` and
+  `_recipes/`, so a new post cannot turn the Screenshots check red.
 - Nav lists only Home/About/Contact. The six program pages still have
   placeholder copy, and `/posts` and `/recipes` have no content yet.
-- `_posts/` and `_recipes/` are empty, so both indexes render an empty state.
-  The first real post or recipe should also get a detail route added to
-  `tests/visual/routes.mjs` — there is currently no screenshot coverage of the
-  article or recipe layout.
+- `_posts/` and `_recipes/` are empty, so both indexes render an empty state on
+  the live site until the client publishes something.
 - Post bodies go through `dangerouslySetInnerHTML`; safe because remark-html
   drops raw HTML, which is also why embeds (video, maps) do not work. Add
   embeds as a constrained component rather than by enabling raw HTML.

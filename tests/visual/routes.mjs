@@ -8,14 +8,9 @@
  * guard test that fails if an exported route is missing from this list, so
  * nothing silently escapes visual coverage.
  *
- * There is no post or recipe detail route here, because there is no post or
- * recipe: content is written through the CMS at /admin now, and the authoring
- * templates that used to stand in for real entries are gone. Both indexes
- * render their empty state.
- *
- * When the first real post or recipe is published, add a detail route so the
- * article layout is covered again. The guard test at the bottom of
- * pages.spec.mjs will fail until you do.
+ * Posts and recipes come from tests/visual/fixtures/content, not from _posts/
+ * and _recipes/, so the entries below are fixture content and do not change
+ * when the client publishes. See tests/visual/fixtures/README.md.
  */
 export const ROUTES = [
   { name: "home", path: "/" },
@@ -28,6 +23,9 @@ export const ROUTES = [
   { name: "summer-faire", path: "/summer-faire" },
   { name: "workshops", path: "/workshops" },
   { name: "posts-index", path: "/posts" },
+  { name: "post-detail", path: "/posts/spring-plant-sale-is-open" },
+  { name: "post-detail-undated", path: "/posts/notes-from-the-compost-pile" },
   { name: "recipes-index", path: "/recipes" },
+  { name: "recipe-detail", path: "/recipes/roasted-roots-with-herb-oil" },
   { name: "not-found", path: "/404" },
 ];
