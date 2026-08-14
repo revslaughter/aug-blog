@@ -1,0 +1,149 @@
+name: Sync content to alpha and beta
+
+# Carries the editor's writing back to the code branches.
+#
+# Content is written on `publish` by the editor at /admin and reaches `main`
+# when publish is merged. Nothing carries it any further. The promotions
+# alpha → beta → main are squash-merged, so main shares no ancestry with the
+# branches it was cut from — git reads the code branches as diverged rather
+# than behind, and no amount of waiting makes the copy flow back. Left alone,
+# alpha and beta keep building the site with whatever text was current at the
+# last release, which is how a screenshot test comes to fail over a paragraph
+# nobody on the code side touched.
+#
+# So: copy the content directories from main onto alpha and beta, and open a
+# pull request for each. Only the four directories the editor can write are
+# touched, and they are taken wholesale, because main is the source of truth
+# for content — it is what is live. This is the same disjoint-paths argument
+# sync-publish.yml makes in the other direction: the code line does not write
+# to these paths, so taking main's side of them costs the branch nothing.
+#
+# A pull request rather than a push, deliberately. `publish` can be rebased
+# under a bot because it is content and nothing else, with no one branched off
+# it; alpha and beta carry code and whatever people have cut from them. The
+# wholesale copy is the sharp edge — a post added on alpha for testing is
+# dropped by it — and a PR puts that in a diff someone reads instead of a
+# force-push someone discovers. Content moves at the speed of the client's
+# writing, not CI, so the review step costs nothing that matters.
+#
+# One wart worth knowing: pull requests opened with GITHUB_TOKEN do not start
+# workflow runs, so these arrive without CI. That is tolerable while the diff
+# is content-only and the branch it targets runs CI on merge anyway. If this
+# is ever widened past content, swap in a PAT — otherwise the checks are
+# silently absent rather than green, which is the worse failure.
+
+on:
+  push:
+    branches: [main]
+    # Only content moves the code branches. A README fix on main is not
+    # something alpha needs a pull request about.
+    paths:
+      - '_nav/**'
+      - '_posts/**'
+      - '_recipes/**'
+      - 'public/uploads/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Two content merges landing together would otherwise race to move the same
+# sync branch, and the loser fails for no useful reason.
+concurrency:
+  group: sync-content
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync content onto ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      # alpha failing is not a reason to leave beta a release behind.
+      fail-fast: false
+      matrix:
+        target: [alpha, beta]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history: the branch is rebuilt from the target's tip, which a
+          # shallow clone does not reliably have.
+          fetch-depth: 0
+
+      - name: Copy content and open a pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git show-ref --verify --quiet "refs/remotes/origin/${TARGET}"; then
+            echo "No ${TARGET} branch — nothing to sync."
+            exit 0
+          fi
+
+          branch="sync/content-to-${TARGET}"
+
+          # Always rebuilt from the target's current tip rather than updated in
+          # place, so a run that lands after the last PR merged starts clean
+          # instead of replaying content the branch already has.
+          git checkout --quiet -B "${branch}" "origin/${TARGET}"
+
+          # Replace rather than overlay. `git checkout main -- <dir>` copies
+          # files in but never removes one, so a post the client deleted would
+          # stay on the code branches forever, and the next screenshot run
+          # would render a page that no longer exists.
+          for dir in _nav _posts _recipes public/uploads; do
+            rm -rf "${dir}"
+            if git rev-parse --quiet --verify "origin/main:${dir}" >/dev/null 2>&1; then
+              git checkout origin/main -- "${dir}"
+            fi
+          done
+          git add -A -- _nav _posts _recipes public/uploads
+
+          if git diff --cached --quiet; then
+            echo "${TARGET} already matches main's content — nothing to do."
+            exit 0
+          fi
+
+          echo "Content changes for ${TARGET}:"
+          git diff --cached --stat
+
+          git commit --quiet \
+            -m "Sync content from main onto ${TARGET}" \
+            -m "Opened by sync-content.yml. Takes _nav/, _posts/, _recipes/ and public/uploads/ from main, which is what is live."
+
+          # Leased so that a run racing this one loses the push rather than
+          # overwriting the content it just staged.
+          git push --force-with-lease origin "${branch}"
+
+          # The sync branch is reused, so on the second run through there is
+          # already a PR open and pushing to it was the whole update.
+          existing="$(gh pr list --head "${branch}" --base "${TARGET}" \
+            --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "${existing}" ]; then
+            echo "Updated existing pull request #${existing}."
+            exit 0
+          fi
+
+          gh pr create \
+            --base "${TARGET}" \
+            --head "${branch}" \
+            --title "Sync content from main onto ${TARGET}" \
+            --body "$(cat <<'BODY'
+          Opened automatically by `sync-content.yml` after content reached `main`.
+
+          Takes `_nav/`, `_posts/`, `_recipes/` and `public/uploads/` from `main`
+          wholesale — `main` is what is live, so it is the source of truth for
+          content. No code is touched.
+
+          Worth a glance at the diff before merging: because the copy is
+          wholesale, anything added to those directories on this branch and not
+          on `main` is removed by it. That is usually correct, and occasionally
+          it is a fixture someone meant to keep.
+          BODY
+          )"
