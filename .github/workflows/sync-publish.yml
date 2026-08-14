@@ -1,0 +1,120 @@
+name: Sync publish with main
+
+# Keeps `publish` carrying the same code as production.
+#
+# `publish` is cut from main and receives content commits from the editor at
+# /admin. Netlify builds it as a branch deploy, which is where the client
+# checks their writing before it goes live. That preview is only honest if the
+# branch is running current code — left alone, `publish` drifts a release
+# behind and shows the client their new post on the old site.
+#
+# This rebases publish's content commits onto main, so the branch stays what
+# the docs say it is: main, plus the entries the editor has added since. The
+# alternative, merging main in, works and never rewrites anything, but it
+# leaves a merge commit on `publish` for every push to main — and all of them
+# land in main's history when `publish` is merged back, which is a lot of noise
+# on the branch whose whole selling point is that its diff is content and
+# nothing else.
+#
+# Rebasing is safe here because the two branches write to different places.
+# `publish` only ever touches _nav/, _posts/, _recipes/ and public/uploads/,
+# and the code line has not touched those since they were set up. When that
+# does collide the run fails without pushing, which is the point.
+#
+# What this must never become is the by-hand re-cut,
+# `git checkout -B publish origin/main && git push --force-with-lease`. That is
+# correct when a person runs it, because they look at the branch first, and
+# destructive on a timer: a post saved at 10am is gone when a code fix lands at
+# 11am, silently, from the author's point of view. Rebasing replays those
+# commits instead of discarding them, and drops them only once main already
+# contains them — which is how the post-publish re-cut happens by itself.
+#
+# The force-push is leased against the exact SHA that was fetched, so if the
+# editor commits while this runs the push is refused rather than applied. That
+# check is load-bearing: keep the lease explicit, and never weaken it to a
+# bare --force.
+#
+# Rebasing main into publish does not weaken "publish never carries unreleased
+# code": main *is* released code. What publish must never carry is alpha/beta.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Two pushes to main in quick succession would otherwise race to move the same
+# branch, and the loser fails for no useful reason.
+concurrency:
+  group: sync-publish
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Rebase publish onto main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history: the rebase needs a merge base, which a shallow clone
+          # does not have.
+          fetch-depth: 0
+
+      - name: Rebase and push
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git show-ref --verify --quiet refs/remotes/origin/publish; then
+            echo "No publish branch — creating it from main."
+            git push origin "origin/main:refs/heads/publish"
+            exit 0
+          fi
+
+          # The editor can commit to publish at any moment, including between
+          # the fetch and the push. That loses the race rather than the
+          # content, so start over against the new tip: three attempts covers a
+          # collision without turning a real problem into an infinite retry.
+          for attempt in 1 2 3; do
+            git fetch --quiet origin main publish
+
+            # The SHA every decision below is made against, and the SHA the
+            # push is leased on. If publish has moved by then, the push is
+            # refused and this loop tries again from the new tip.
+            base="$(git rev-parse origin/publish)"
+            git checkout --quiet -B publish "${base}"
+
+            if git merge-base --is-ancestor origin/main HEAD; then
+              echo "publish already contains main; nothing to do."
+              exit 0
+            fi
+
+            # --empty=drop is what turns the post-publish tidy-up into a no-op:
+            # once main has been given the content, replaying those commits
+            # produces nothing and they are dropped, leaving publish equal to
+            # main. That is the re-cut, arrived at without ever discarding a
+            # commit that had not been published yet.
+            if ! git rebase --empty=drop origin/main; then
+              git rebase --abort || true
+              echo "::error::Rebasing publish onto main hit a conflict, so nothing" \
+                   "was pushed. The same content file was changed on both branches." \
+                   "Resolve it by hand — do not re-cut publish, which resolves it by" \
+                   "throwing away the author's side."
+              exit 1
+            fi
+
+            if git push --force-with-lease="publish:${base}" origin publish; then
+              echo "publish rebased onto main."
+              exit 0
+            fi
+
+            echo "publish moved while we were working (attempt ${attempt}/3); retrying."
+          done
+
+          echo "::error::Could not update publish after 3 attempts. Nothing was lost —" \
+               "the lease refused each push rather than overwriting. Re-run this workflow."
+          exit 1
