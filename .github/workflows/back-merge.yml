@@ -1,0 +1,170 @@
+name: Back-merge main into alpha and beta
+
+# Keeps the code branches carrying everything that is live.
+#
+# Work goes out alpha → beta → main, and two things come back the other way:
+# the client's writing, which lands on main when `publish` is merged, and
+# anything fixed on main directly. Nothing carries either of them back, so the
+# code branches drift — and the drift is not only content. Alpha was once
+# missing sync-publish.yml outright, because a workflow added during release
+# prep never travelled back from the branch it shipped on.
+#
+# So: merge main into alpha and beta on every push to main, and open a pull
+# request for each.
+#
+# ## This is only cheap while the promotions are merged, not squashed
+#
+# A squashed promotion collapses a release into one commit whose parent is the
+# *merge base*, which leaves main sharing no ancestry with the branch it was
+# cut from. Git then reads the code branches as diverged rather than behind —
+# alpha once looked 27 commits apart while the trees differed in six files —
+# and a back-merge that should be a formality turns into a conflict pile.
+#
+# Two consequences, both load-bearing:
+#
+#   1. The alpha → beta → main promotions must be merged, never squashed.
+#   2. The pull requests this workflow opens must be merged, never squashed.
+#      Squashing one discards the ancestry link that was the whole point, and
+#      the next run has to rebuild it against a merge base that has not moved.
+#
+# When that discipline slips the merge conflicts, and this fails loudly and
+# pushes nothing rather than guessing. That is the intended failure: the fix is
+# a person merging by hand, not a bot forcing anything.
+#
+# ## Why a pull request
+#
+# sync-publish.yml can rebase `publish` under a bot because that branch is
+# content and nothing else, with nobody branched off it. Alpha and beta carry
+# code and whatever people have cut from them, so the merge commit goes up for
+# review first. Content moves at the speed of the client's writing, so the
+# review step costs nothing that matters.
+#
+# The exception is a merge that changes no files, which happens on every
+# promotion: right after beta ships to main, merging main back into beta is
+# pure bookkeeping. There is nothing to review in an empty diff, so those are
+# pushed straight to the branch — it can only add a merge commit, never change
+# a file — and only merges that actually move something open a PR.
+#
+# One wart: pull requests opened with GITHUB_TOKEN do not start workflow runs,
+# so these arrive without CI. The branch they target runs CI on merge, so a
+# problem surfaces there rather than never — but it surfaces after the merge,
+# not before. Swap in a PAT if that becomes the thing that bites.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Two merges landing on main together would otherwise race to move the same
+# sync branch, and the loser fails for no useful reason.
+concurrency:
+  group: back-merge
+  cancel-in-progress: false
+
+jobs:
+  back-merge:
+    name: Back-merge into ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      # alpha failing is not a reason to leave beta a release behind.
+      fail-fast: false
+      matrix:
+        target: [alpha, beta]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history: a merge needs a merge base, which a shallow clone
+          # does not have.
+          fetch-depth: 0
+
+      - name: Merge main into ${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git show-ref --verify --quiet "refs/remotes/origin/${TARGET}"; then
+            echo "No ${TARGET} branch — nothing to do."
+            exit 0
+          fi
+
+          if git merge-base --is-ancestor origin/main "origin/${TARGET}"; then
+            echo "${TARGET} already contains main — nothing to do."
+            exit 0
+          fi
+
+          branch="sync/main-to-${TARGET}"
+
+          # The SHA every decision below is made against, and the SHA the
+          # fast-forward push is checked against. Rebuilt from the target's tip
+          # each run rather than updated in place, so a run landing after the
+          # last pull request merged starts clean.
+          base="$(git rev-parse "origin/${TARGET}")"
+          git checkout --quiet -B "${branch}" "${base}"
+
+          if ! git merge --no-edit -m "Merge main into ${TARGET}" origin/main; then
+            git merge --abort || true
+            echo "::error::Merging main into ${TARGET} conflicts, so nothing was" \
+                 "pushed. Usually this means a promotion was squashed and the" \
+                 "merge base has stopped moving. Merge it by hand — do not" \
+                 "re-cut the branch, which resolves it by discarding one side."
+            exit 1
+          fi
+
+          # A merge that changes no files is the post-promotion no-op: main has
+          # just taken everything this branch had, so the only thing the merge
+          # carries is the ancestry link. Nothing to review, and it cannot lose
+          # work, so it goes straight to the branch as a fast-forward. If the
+          # branch moved while we worked, the push is refused rather than
+          # forced, and the next push to main picks it up again.
+          if git diff --quiet "${base}" HEAD; then
+            if git push origin "HEAD:${TARGET}"; then
+              echo "${TARGET} reconnected to main; no files changed."
+            else
+              echo "${TARGET} moved while this ran; the next run will catch it."
+            fi
+            exit 0
+          fi
+
+          echo "Changes coming back to ${TARGET}:"
+          git diff --stat "${base}" HEAD
+
+          # Leased so a run racing this one loses the push rather than
+          # overwriting the merge it just resolved.
+          git push --force-with-lease origin "${branch}"
+
+          # The sync branch is reused, so on later runs the pull request is
+          # already open and pushing to it was the whole update.
+          existing="$(gh pr list --head "${branch}" --base "${TARGET}" \
+            --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "${existing}" ]; then
+            echo "Updated existing pull request #${existing}."
+            exit 0
+          fi
+
+          gh pr create \
+            --base "${TARGET}" \
+            --head "${branch}" \
+            --title "Merge main into ${TARGET}" \
+            --body "$(cat <<'BODY'
+          Opened automatically by `back-merge.yml` after a push to `main`.
+
+          Brings this branch up to everything that is live — the client's writing,
+          which reaches `main` through `publish`, and anything fixed on `main`
+          directly.
+
+          **Merge this, do not squash it.** The merge commit is what keeps `main`
+          in this branch's ancestry. Squashing discards that, and the next
+          back-merge has to start over against a merge base that has not moved —
+          which is the drift this workflow exists to stop.
+          BODY
+          )"

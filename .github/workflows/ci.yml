@@ -81,7 +81,16 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    continue-on-error: true  # non-blocking; static site has no server runtime
+    # Non-blocking on purpose: this job reports, it does not gate. Nothing here
+    # is reachable at runtime, so a new advisory is worth reading on the way
+    # past, not worth holding a merge over.
+    #
+    # What made the flag a problem before was not the flag: the job failed on
+    # every single run, so `continue-on-error` was covering a permanent failure
+    # rather than softening an occasional one, and a check that is always red is
+    # one nobody reads. The lockfile audits clean now, so green is the resting
+    # state and a red run here means something actually landed.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -89,7 +98,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Only flag high/critical. Moderate advisories here are all build/dev-time
-      # tooling (jest, gray-matter, next's postcss) with no static-site runtime
-      # exposure, and their only "fix" is major downgrades — so they're noise.
+      # Threshold stays at high even though the tree is currently clean all the
+      # way down to moderate. Nothing here is exposed at runtime — the site is
+      # `output: "export"`, static HTML/CSS/JS on Netlify with no server, so the
+      # Server Actions / Edge / rewrites / Image Optimization advisories that
+      # dominate next's feed do not describe anything that exists in production,
+      # and postcss and sharp only ever run at build time. Reporting every
+      # moderate advisory against build tooling would put this job back where it
+      # started — noisy enough to tune out. High is the level worth a look.
       - run: npm audit --audit-level=high
