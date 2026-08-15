@@ -250,6 +250,17 @@ function EventModal({ event, onClose }) {
 const DATE_LOCALE = "en-US";
 const DATE_TIME_ZONE = "America/Chicago";
 
+// An all-day event's start is a calendar date, not a moment: the feed gives
+// us "the 23rd", which util/googleCalendar.js normalizes to the UTC-midnight
+// instant 2026-05-23T00:00:00Z. Rendering that instant in DATE_TIME_ZONE
+// would print the 22nd (UTC midnight is 7pm the previous evening in
+// Chicago), so all-day dates are formatted in UTC — which reads the instant
+// back as the very date it was built from. Timed events carry a real moment
+// and stay in the display zone. See #30.
+function displayTimeZone(allDay) {
+	return allDay ? "UTC" : DATE_TIME_ZONE;
+}
+
 // Built from formatToParts rather than toLocaleString/toLocaleDateString:
 // those insert engine-chosen literal separators (e.g. some ICU builds use
 // a narrow no-break space before AM/PM, others a plain space), which can
@@ -265,7 +276,7 @@ function formatEventDate(start, allDay) {
 		hour: allDay ? undefined : "numeric",
 		minute: allDay ? undefined : "2-digit",
 		hour12: true,
-		timeZone: DATE_TIME_ZONE,
+		timeZone: displayTimeZone(allDay),
 	}).formatToParts(date);
 	const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
 
