@@ -54,6 +54,10 @@ const PUBLIC_PREFIX = "[PUBLIC]";
  * throws — a source that rejects resolves to an empty array, so a flaky
  * calendar can never break the site build.
  *
+ * An event is published only if it starts within the next `windowDays` days,
+ * so the six cards are always genuinely "upcoming" rather than whatever the
+ * calendar happens to hold next.
+ *
  * @param {{
  *   loadCalendar?: CalendarSource|null,
  *   now?: Date,
@@ -158,8 +162,11 @@ function resolveNow(frozen) {
 
 /**
  * A VEVENT is either a single occurrence or, if it has an RRULE, a
- * recurring series. Expand recurring events to their occurrences within
- * the lookahead window; pass single occurrences through if they're upcoming.
+ * recurring series. Either way only the part of it falling inside
+ * [now, windowEnd] is published: recurring events are expanded to their
+ * occurrences in that range, single occurrences pass through if they land
+ * in it. Both bounds apply to both kinds, so `windowDays` means the same
+ * thing for a one-off in September as it does for a weekly class (#31).
  *
  * @param {import("node-ical").VEvent} entry
  * @param {Date} now
@@ -169,7 +176,7 @@ function resolveNow(frozen) {
 function expandOccurrences(entry, now, windowEnd) {
   if (!entry.rrule) {
     const start = entry.start && new Date(entry.start);
-    if (!start || start < now) return [];
+    if (!start || start < now || start > windowEnd) return [];
     return [toCalendarEvent(entry, entry.start, entry.end)];
   }
 
