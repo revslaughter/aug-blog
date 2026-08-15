@@ -9,7 +9,6 @@ published without a developer in the loop.
 
 - **Live site** — `main`, deployed by Netlify
 - **What's outstanding** — [the issue tracker](https://github.com/revslaughter/aug-blog/issues), which is the only roadmap
-- **Guide for the client** — [`docs/writing-for-the-website.md`](docs/writing-for-the-website.md)
 
 ## Contents
 
@@ -79,7 +78,6 @@ util/                 Content loaders, navPages, siteMeta (SEO source of truth)
 _nav/                 The top-level pages and the nav bar, written via /admin
 _posts/               Blog posts (Markdown + frontmatter), written via /admin
 _recipes/             Recipes, same shape as posts but undated
-docs/                 Client-facing guide to the editor
 public/               Static assets; public/admin/ is the CMS
 scripts/              Nav + sitemap generators, static server, container runner
 styles/               CSS modules + globals
@@ -322,13 +320,12 @@ pull request:
 - [ ] Register the **GitHub OAuth app** and install it in Netlify, per
       [Signing in](#signing-in)
 - [ ] Sign in to `/admin` and publish a **test post end to end**, then delete it
-- [ ] Fill in the `[FILL IN]` placeholders in
-      `docs/writing-for-the-website.md` — the editor and preview URLs do not
-      exist until the two steps above are done — and walk the client through
-      their first post rather than sending the guide cold
 
-Keep that guide in step with `config.yml`: if the fields change, the guide
-changes.
+There is no written guide to hand over: the client was walked through the
+editor in person instead. If that ever needs to become a document again, the
+thing it has to stay in step with is `public/admin/config.yml` — the fields in
+the editor are defined there, and a guide describing different ones is worse
+than none.
 
 ## Screenshot tests
 
