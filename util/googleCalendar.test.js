@@ -214,6 +214,52 @@ describe("all-day events, parsed for real", () => {
   });
 });
 
+// The block above only exercises the non-recurring branch of
+// `expandOccurrences`. A recurring series goes through `rrule.between`
+// instead, which returns its own Date objects — so the floating-date handling
+// has to be applied there too, and nothing would catch it regressing on one
+// branch while the other stayed correct.
+describe("recurring all-day events, parsed for real", () => {
+  const realIcal = jest.requireActual("node-ical");
+  const FIXTURE = "tests/fixtures/recurring-all-day.ics";
+  usePolyfilledSetImmediate();
+
+  async function occurrences() {
+    return getUpcomingEvents({
+      now: new Date("2026-03-01T12:00:00Z"),
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 30,
+    });
+  }
+
+  // Consecutive Wednesdays, asserted as a whole sequence rather than one date:
+  // a wrong derivation tends to slip a single occurrence rather than all of
+  // them, so checking only the first would miss it. 8 March 2026 is the US DST
+  // transition, so the underlying instants shift by an hour partway down this
+  // list while the calendar dates must not.
+  //
+  // Note what this can and cannot catch. Deriving the date from the UTC
+  // instant instead of the local parts fails here under any zone ahead of
+  // UTC — verified at Asia/Tokyo and Pacific/Kiritimati — but *passes* under
+  // TZ=UTC, because that is the one offset at which the two derivations agree.
+  // CI runs UTC, so this test does not guard the regression on CI. Running the
+  // suite at a non-zero offset is what would close that, and is tracked in #65.
+  it("keeps every occurrence on its own date across a DST transition", async () => {
+    expect((await occurrences()).map((event) => event.startDate)).toEqual([
+      "2026-03-04",
+      "2026-03-11",
+      "2026-03-18",
+      "2026-03-25",
+    ]);
+  });
+
+  it("marks every occurrence all-day", async () => {
+    const events = await occurrences();
+    expect(events).not.toHaveLength(0);
+    expect(events.every((event) => event.allDay)).toBe(true);
+  });
+});
+
 describe("calendar sources", () => {
   beforeEach(() => {
     ical.async.fromURL.mockReset();
