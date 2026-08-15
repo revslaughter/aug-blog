@@ -18,6 +18,17 @@ function vevent(uid, summary, { daysFromNow = 1 } = {}) {
   return { type: "VEVENT", uid, summary, start, end };
 }
 
+/** A public VEVENT at an exact instant, for tests that inject their own `now`. */
+function at(title, iso) {
+  return {
+    type: "VEVENT",
+    uid: title,
+    summary: `[PUBLIC] ${title}`,
+    start: new Date(iso),
+    end: new Date(iso),
+  };
+}
+
 /** A calendar source that resolves to a literal calendar object. */
 function sourceOf(calendar) {
   return () => Promise.resolve(calendar);
@@ -82,14 +93,6 @@ describe("getUpcomingEvents", () => {
   });
 
   it("measures the upcoming window from the injected `now`", async () => {
-    const at = (title, iso) => ({
-      type: "VEVENT",
-      uid: title,
-      summary: `[PUBLIC] ${title}`,
-      start: new Date(iso),
-      end: new Date(iso),
-    });
-
     const calendar = sourceOf({
       before: at("Week Before", "2026-04-28T14:00:00Z"),
       after: at("Week After", "2026-05-11T14:00:00Z"),
@@ -105,6 +108,35 @@ describe("getUpcomingEvents", () => {
       (await getUpcomingEvents({ now: new Date("2026-04-20T14:00:00Z"), loadCalendar: calendar }))
         .map((e) => e.title)
     ).toEqual(["Week Before", "Week After"]);
+  });
+
+  // `windowDays` bounds the far end of the window too, and does so for one-off
+  // events as well as recurring ones — before #31 a lone event months out was
+  // still eligible and could take one of the six card slots.
+  describe("the far end of the window", () => {
+    const now = new Date("2026-05-04T14:00:00Z"); // default window ends 2026-06-03
+    const calendar = sourceOf({
+      near: at("Next Week", "2026-05-11T14:00:00Z"),
+      far: at("Six Months Out", "2026-11-04T14:00:00Z"),
+    });
+
+    it("excludes a one-off event starting past the window", async () => {
+      const events = await getUpcomingEvents({ now, loadCalendar: calendar });
+      expect(events.map((e) => e.title)).toEqual(["Next Week"]);
+    });
+
+    it("keeps one starting inside it", async () => {
+      const events = await getUpcomingEvents({
+        now,
+        loadCalendar: sourceOf({ edge: at("Last Day", "2026-06-03T09:00:00Z") }),
+      });
+      expect(events.map((e) => e.title)).toEqual(["Last Day"]);
+    });
+
+    it("moves with `windowDays`, so a wider window reaches the distant event", async () => {
+      const events = await getUpcomingEvents({ now, loadCalendar: calendar, windowDays: 365 });
+      expect(events.map((e) => e.title)).toEqual(["Next Week", "Six Months Out"]);
+    });
   });
 });
 
