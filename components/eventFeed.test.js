@@ -17,8 +17,9 @@ function event(overrides) {
   };
 }
 
-// The printed date is fixed to en-US/America/Chicago rather than the
-// visitor's locale, so these expectations hold whatever TZ Jest runs under.
+// The component pins both the locale and the timezone it formats in rather
+// than taking the viewer's, so these expectations hold whatever TZ Jest
+// happens to run under.
 describe("EventFeed date formatting", () => {
   it("prints an all-day event on its own date, not the evening before", () => {
     // The regression in #30: an all-day entry for the 23rd arrives as
