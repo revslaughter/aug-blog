@@ -3,12 +3,16 @@ import Image from "next/image";
 import styles from "./eventFeed.module.css";
 
 /**
+ * `start`/`end` are ISO instants. `startDate` is a floating `YYYY-MM-DD`
+ * calendar date, present only on all-day events — see util/googleCalendar.js.
+ *
  * @typedef {{
  *   id: string,
  *   title: string,
  *   start: string,
  *   end?: string,
  *   allDay?: boolean,
+ *   startDate?: string|null,
  *   location?: string|null,
  *   description?: string|null,
  *   url?: string|null
@@ -136,7 +140,7 @@ function linkifyText(text) {
 }
 
 function EventCard({ event, isSelected, onSelect }) {
-  const { title, start, allDay, location, description } = event;
+  const { title, location, description } = event;
   const { preview, isTruncated } = description
     ? truncateDescription(description)
     : {};
@@ -150,7 +154,7 @@ function EventCard({ event, isSelected, onSelect }) {
         aria-haspopup="dialog"
         aria-label={`View details for ${title}`}
       />
-      <div className={styles.date}>{formatEventDate(start, allDay)}</div>
+      <div className={styles.date}>{formatEventDate(event)}</div>
       <div className={styles.title}>{title}</div>
       {location && <div className={styles.location}>{location}</div>}
       {description && (
@@ -216,9 +220,7 @@ function EventModal({ event, onClose }) {
           >
             &times;
           </button>
-          <div className={styles.date}>
-            {formatEventDate(event.start, event.allDay)}
-          </div>
+          <div className={styles.date}>{formatEventDate(event)}</div>
           <h3 className={styles.modalTitle}>{event.title}</h3>
           {event.location && (
             <div className={styles.location}>{event.location}</div>
@@ -250,15 +252,22 @@ function EventModal({ event, onClose }) {
 const DATE_LOCALE = "en-US";
 const DATE_TIME_ZONE = "America/Chicago";
 
-// An all-day event's start is a calendar date, not a moment: the feed gives
-// us "the 23rd", which util/googleCalendar.js normalizes to the UTC-midnight
-// instant 2026-05-23T00:00:00Z. Rendering that instant in DATE_TIME_ZONE
-// would print the 22nd (UTC midnight is 7pm the previous evening in
-// Chicago), so all-day dates are formatted in UTC — which reads the instant
-// back as the very date it was built from. Timed events carry a real moment
-// and stay in the display zone. See #30.
-function displayTimeZone(allDay) {
-	return allDay ? "UTC" : DATE_TIME_ZONE;
+// An all-day event's date is a date on a wall calendar, not a moment, so it
+// must never be read out of an instant — the instant node-ical builds for a
+// date-only entry sits at the build machine's local midnight, which is the
+// previous day in UTC anywhere east of Greenwich. util/googleCalendar.js
+// therefore hands all-day events a floating `startDate` ("2026-05-23"), and
+// this is where we spend it: the date parts are taken from that string
+// directly, never converted through any zone. Timed events do carry a real
+// moment, so they keep being rendered in DATE_TIME_ZONE. See #30.
+//
+// The only Date built here is `Date.UTC(...)` from those same parts, read
+// back in UTC — an identity round trip whose output cannot depend on the
+// build machine's zone. It exists solely because Intl needs a Date to hang
+// a localized month name off.
+function allDayInstant(startDate) {
+	const [year, month, day] = startDate.split("-").map(Number);
+	return new Date(Date.UTC(year, month - 1, day));
 }
 
 // Built from formatToParts rather than toLocaleString/toLocaleDateString:
@@ -267,16 +276,23 @@ function displayTimeZone(allDay) {
 // differ between Node's bundled ICU and a browser's, breaking hydration
 // even with a fixed locale/timeZone. Assembling the string ourselves from
 // the individual parts keeps every byte engine-independent.
-function formatEventDate(start, allDay) {
-  const date = new Date(start);
-  const parts = new Intl.DateTimeFormat(DATE_LOCALE, {
+//
+// Takes the whole CalendarEvent rather than loose fields so that adding
+// `startDate` to the data couldn't leave one call site reading the old shape.
+function formatEventDate({ start, allDay, startDate }) {
+	// An all-day event predating `startDate` (or one hand-built by a caller)
+	// still has to render something; falling back to the instant is the old
+	// #30 behaviour, right whenever the build machine runs at or west of UTC.
+	const isFloating = Boolean(allDay && startDate);
+	const date = isFloating ? allDayInstant(startDate) : new Date(start);
+	const parts = new Intl.DateTimeFormat(DATE_LOCALE, {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
 		hour: allDay ? undefined : "numeric",
 		minute: allDay ? undefined : "2-digit",
 		hour12: true,
-		timeZone: displayTimeZone(allDay),
+		timeZone: allDay ? "UTC" : DATE_TIME_ZONE,
 	}).formatToParts(date);
 	const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
 

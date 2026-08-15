@@ -34,6 +34,28 @@ function sourceOf(calendar) {
   return () => Promise.resolve(calendar);
 }
 
+/**
+ * Lets a suite call node-ical's async parser. It defers work through Node's
+ * `setImmediate`, which jsdom — the environment this project's Jest runs in —
+ * intentionally omits, since browsers have no such global. Scoped to the
+ * calling `describe` so nothing else sees the added global.
+ */
+function usePolyfilledSetImmediate() {
+  const absent = typeof globalThis.setImmediate === "undefined";
+  beforeAll(() => {
+    if (absent) {
+      globalThis.setImmediate = (fn, ...args) => setTimeout(fn, 0, ...args);
+      globalThis.clearImmediate = (handle) => clearTimeout(handle);
+    }
+  });
+  afterAll(() => {
+    if (absent) {
+      delete globalThis.setImmediate;
+      delete globalThis.clearImmediate;
+    }
+  });
+}
+
 // `getUpcomingEvents` takes its calendar and its clock as arguments, so these
 // need no module mocking and no fake timers.
 describe("getUpcomingEvents", () => {
@@ -137,6 +159,58 @@ describe("getUpcomingEvents", () => {
       const events = await getUpcomingEvents({ now, loadCalendar: calendar, windowDays: 365 });
       expect(events.map((e) => e.title)).toEqual(["Next Week", "Six Months Out"]);
     });
+  });
+});
+
+// Everything above hands `getUpcomingEvents` literal objects, which is enough
+// for filtering and windowing but useless for #30: the bug lives in what
+// node-ical produces for a `VALUE=DATE` property, so a hand-written `start`
+// just bakes in whatever assumption the test author already held. These run
+// the real parser over the real fixture instead.
+describe("all-day events, parsed for real", () => {
+  const realIcal = jest.requireActual("node-ical");
+  const FIXTURE = "tests/visual/fixtures/events.ics";
+  // node-ical's async API defers through setImmediate, which jsdom (this
+  // project's Jest environment) deliberately does not provide.
+  usePolyfilledSetImmediate();
+  // The fixture's Summer Faire is `DTSTART;VALUE=DATE:20260523`.
+  const now = new Date("2026-05-04T14:00:00Z");
+
+  async function faire() {
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 60,
+    });
+    return events.find((event) => event.title === "Summer Faire");
+  }
+
+  it("carries the calendar date the feed named, whatever zone the build runs in", async () => {
+    // node-ical parses a date-only DTSTART at *local* midnight, so under
+    // TZ=Asia/Tokyo this event's instant is 2026-05-22T15:00:00Z. `startDate`
+    // is the floating date, and stays the 23rd regardless.
+    expect((await faire()).startDate).toBe("2026-05-23");
+  });
+
+  it("marks it all-day", async () => {
+    expect((await faire()).allDay).toBe(true);
+  });
+
+  // The instant is deliberately left alone — sorting and windowing still use
+  // it, and it is only the *date* that an instant cannot express.
+  it("still exposes an ISO instant on `start`", async () => {
+    expect((await faire()).start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  });
+
+  it("leaves `startDate` null on timed events", async () => {
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 60,
+    });
+    const timed = events.find((event) => event.title === "Spring Plant Sale Opening Day");
+    expect(timed.allDay).toBe(false);
+    expect(timed.startDate).toBeNull();
   });
 });
 
