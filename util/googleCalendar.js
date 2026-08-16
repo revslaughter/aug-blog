@@ -369,17 +369,25 @@ function formatDisplayDate({ start, allDay, startDate }) {
  * 197px, so the label costs a line break nowhere: every card stays one line at
  * every viewport, which is why adding it moves so few pixels.
  *
- * The binding is for the other font. globals.css loads Suranna with
- * `display=swap`, so the first paint of every visit renders in the Georgia
- * fallback, as does the whole visit for anyone whose browser cannot reach
- * fonts.googleapis.com. Georgia is wider: the same line is 220.5px there,
- * two and a half pixels over, and with ordinary spaces it wraps and leaves the
- * bare word "CDT" alone on the second line, detached from the time it
+ * The binding is for the fallback font. globals.css loads Suranna with
+ * `display=swap`, so the first paint of every visit renders in the fallback
+ * serif, as does the whole visit for anyone whose browser cannot reach
+ * fonts.googleapis.com. That face is wider: the same line measures 221.5px,
+ * three and a half pixels over, and with ordinary spaces it wraps and leaves
+ * the bare word "CDT" alone on the second line, detached from the time it
  * qualifies. Bound, it breaks at the comma instead — "May 13, 2026," /
  * "7:00 AM CDT" — which still reads as a date and a time.
  *
- * Both measured in the pinned Playwright container. When the line fits, bound
- * and unbound render identically, so this costs nothing in the common case.
+ * When the line fits, bound and unbound render identically, so this costs
+ * nothing in the common case.
+ *
+ * Two notes for anyone re-measuring. The figures above come from a browser
+ * with the real faces available — not from the pinned Playwright container,
+ * which has neither Suranna nor Georgia installed and substitutes a different
+ * face again, so it cannot answer this question. And `.date` is bold while
+ * Suranna ships only weight 400: a probe that omits `font-weight` measures a
+ * synthesised face and comes out around 9px narrow, which is enough to draw
+ * the opposite conclusion.
  *
  * Written as an escape rather than a literal so it cannot be mistaken for an
  * ordinary space, here or in a diff.
