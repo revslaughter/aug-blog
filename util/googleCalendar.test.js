@@ -162,6 +162,71 @@ describe("getUpcomingEvents", () => {
   });
 });
 
+// The date line the cards print is built here rather than in the component, so
+// this is where its content is asserted. See `formatDisplayDate` for why it
+// moved: the component renders on the client too, and a second formatter is a
+// second chance to disagree byte for byte.
+describe("displayDate", () => {
+  /** The single event a one-entry calendar yields, with `now` set to let it in. */
+  async function only(title, iso) {
+    const events = await getUpcomingEvents({
+      now: new Date(new Date(iso).getTime() - 24 * 60 * 60 * 1000),
+      loadCalendar: sourceOf({ e: at(title, iso) }),
+    });
+    expect(events).toHaveLength(1);
+    return events[0];
+  }
+
+  /**
+   * The clock time and its zone are joined with non-breaking spaces, so that
+   * where the line does have to wrap it breaks at the comma rather than
+   * orphaning "CDT" — see `formatDisplayDate` for the measurements. Those
+   * bytes are invisible in an expectation string and
+   * would make every assertion below unreadable, so the tests about what the
+   * line *says* read it through this, and the one test about the binding
+   * asserts the bytes directly.
+   */
+  const readable = (value) => value.replaceAll("\u00A0", " ");
+
+  it("binds the clock time to its zone with non-breaking spaces", async () => {
+    const { displayDate } = await only("Evening Workshop", "2026-09-19T23:00:00Z");
+    expect(displayDate).toBe("Sep 19, 2026, 6:00\u00A0PM\u00A0CDT");
+  });
+
+  // Kansas City is America/Chicago, which is CDT for eight months of the year
+  // and CST for four. Asserting only a summer date would leave the winter half
+  // of the calendar unguarded — and it is the half a hardcoded "CDT" would get
+  // wrong. These four instants bracket both 2026 transitions: daylight time
+  // begins 8 March and ends 1 November.
+  //
+  // They pin the venue's zone as well as the label. The whole point of printing
+  // an abbreviation is that a reader 13 hours away can tell whose 6pm this is,
+  // so it has to be Kansas City's and not the build machine's — formatted in
+  // the ambient zone these would read GMT/BST under TZ=Europe/London, and the
+  // clock times would move with them.
+  describe("labels a timed event with the zone in force on its own date", () => {
+    it("CST on the last morning of standard time", async () => {
+      const event = await only("Before Spring Forward", "2026-03-07T18:00:00Z");
+      expect(readable(event.displayDate)).toBe("Mar 7, 2026, 12:00 PM CST");
+    });
+
+    it("CDT the day after the clocks go forward", async () => {
+      const event = await only("After Spring Forward", "2026-03-09T18:00:00Z");
+      expect(readable(event.displayDate)).toBe("Mar 9, 2026, 1:00 PM CDT");
+    });
+
+    it("CDT on the last day of daylight time", async () => {
+      const event = await only("Before Fall Back", "2026-10-31T18:00:00Z");
+      expect(readable(event.displayDate)).toBe("Oct 31, 2026, 1:00 PM CDT");
+    });
+
+    it("CST the day after the clocks go back", async () => {
+      const event = await only("After Fall Back", "2026-11-02T18:00:00Z");
+      expect(readable(event.displayDate)).toBe("Nov 2, 2026, 12:00 PM CST");
+    });
+  });
+});
+
 // Everything above hands `getUpcomingEvents` literal objects, which is enough
 // for filtering and windowing but useless for #30: the bug lives in what
 // node-ical produces for a `VALUE=DATE` property, so a hand-written `start`
@@ -196,6 +261,17 @@ describe("all-day events, parsed for real", () => {
     expect((await faire()).allDay).toBe(true);
   });
 
+  it("prints that date, and only that date", async () => {
+    expect((await faire()).displayDate).toBe("May 23, 2026");
+  });
+
+  // A calendar date names no moment, so there is no zone that could be right
+  // for it. Labelling one would put back the confusion #30 removed — the
+  // reader would be told the 23rd happens at a particular hour somewhere.
+  it("gives an all-day event no zone label", async () => {
+    expect((await faire()).displayDate).not.toMatch(/CDT|CST|UTC|GMT/);
+  });
+
   // The instant is deliberately left alone — sorting and windowing still use
   // it, and it is only the *date* that an instant cannot express.
   it("still exposes an ISO instant on `start`", async () => {
@@ -211,6 +287,9 @@ describe("all-day events, parsed for real", () => {
     const timed = events.find((event) => event.title === "Spring Plant Sale Opening Day");
     expect(timed.allDay).toBe(false);
     expect(timed.startDate).toBeNull();
+    // ...and does label that one, from the same fixture in the same run, so the
+    // bare/labelled split is asserted as a contrast rather than in isolation.
+    expect(timed.displayDate).toMatch(/\u00A0CDT$/);
   });
 });
 
@@ -257,6 +336,18 @@ describe("recurring all-day events, parsed for real", () => {
     const events = await occurrences();
     expect(events).not.toHaveLength(0);
     expect(events.every((event) => event.allDay)).toBe(true);
+  });
+
+  // The series straddles 8 March, so if all-day dates were ever formatted
+  // through a zone this is where the seam would show — one printed date would
+  // slip while its neighbours held.
+  it("prints each occurrence bare, on its own date, across the transition", async () => {
+    expect((await occurrences()).map((event) => event.displayDate)).toEqual([
+      "Mar 4, 2026",
+      "Mar 11, 2026",
+      "Mar 18, 2026",
+      "Mar 25, 2026",
+    ]);
   });
 });
 
