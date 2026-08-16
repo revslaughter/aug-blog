@@ -34,6 +34,28 @@ function sourceOf(calendar) {
   return () => Promise.resolve(calendar);
 }
 
+/**
+ * Lets a suite call node-ical's async parser. It defers work through Node's
+ * `setImmediate`, which jsdom — the environment this project's Jest runs in —
+ * intentionally omits, since browsers have no such global. Scoped to the
+ * calling `describe` so nothing else sees the added global.
+ */
+function usePolyfilledSetImmediate() {
+  const absent = typeof globalThis.setImmediate === "undefined";
+  beforeAll(() => {
+    if (absent) {
+      globalThis.setImmediate = (fn, ...args) => setTimeout(fn, 0, ...args);
+      globalThis.clearImmediate = (handle) => clearTimeout(handle);
+    }
+  });
+  afterAll(() => {
+    if (absent) {
+      delete globalThis.setImmediate;
+      delete globalThis.clearImmediate;
+    }
+  });
+}
+
 // `getUpcomingEvents` takes its calendar and its clock as arguments, so these
 // need no module mocking and no fake timers.
 describe("getUpcomingEvents", () => {
@@ -137,6 +159,104 @@ describe("getUpcomingEvents", () => {
       const events = await getUpcomingEvents({ now, loadCalendar: calendar, windowDays: 365 });
       expect(events.map((e) => e.title)).toEqual(["Next Week", "Six Months Out"]);
     });
+  });
+});
+
+// Everything above hands `getUpcomingEvents` literal objects, which is enough
+// for filtering and windowing but useless for #30: the bug lives in what
+// node-ical produces for a `VALUE=DATE` property, so a hand-written `start`
+// just bakes in whatever assumption the test author already held. These run
+// the real parser over the real fixture instead.
+describe("all-day events, parsed for real", () => {
+  const realIcal = jest.requireActual("node-ical");
+  const FIXTURE = "tests/visual/fixtures/events.ics";
+  // node-ical's async API defers through setImmediate, which jsdom (this
+  // project's Jest environment) deliberately does not provide.
+  usePolyfilledSetImmediate();
+  // The fixture's Summer Faire is `DTSTART;VALUE=DATE:20260523`.
+  const now = new Date("2026-05-04T14:00:00Z");
+
+  async function faire() {
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 60,
+    });
+    return events.find((event) => event.title === "Summer Faire");
+  }
+
+  it("carries the calendar date the feed named, whatever zone the build runs in", async () => {
+    // node-ical parses a date-only DTSTART at *local* midnight, so under
+    // TZ=Asia/Tokyo this event's instant is 2026-05-22T15:00:00Z. `startDate`
+    // is the floating date, and stays the 23rd regardless.
+    expect((await faire()).startDate).toBe("2026-05-23");
+  });
+
+  it("marks it all-day", async () => {
+    expect((await faire()).allDay).toBe(true);
+  });
+
+  // The instant is deliberately left alone — sorting and windowing still use
+  // it, and it is only the *date* that an instant cannot express.
+  it("still exposes an ISO instant on `start`", async () => {
+    expect((await faire()).start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  });
+
+  it("leaves `startDate` null on timed events", async () => {
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 60,
+    });
+    const timed = events.find((event) => event.title === "Spring Plant Sale Opening Day");
+    expect(timed.allDay).toBe(false);
+    expect(timed.startDate).toBeNull();
+  });
+});
+
+// The block above only exercises the non-recurring branch of
+// `expandOccurrences`. A recurring series goes through `rrule.between`
+// instead, which returns its own Date objects — so the floating-date handling
+// has to be applied there too, and nothing would catch it regressing on one
+// branch while the other stayed correct.
+describe("recurring all-day events, parsed for real", () => {
+  const realIcal = jest.requireActual("node-ical");
+  const FIXTURE = "tests/fixtures/recurring-all-day.ics";
+  usePolyfilledSetImmediate();
+
+  async function occurrences() {
+    return getUpcomingEvents({
+      now: new Date("2026-03-01T12:00:00Z"),
+      loadCalendar: () => realIcal.async.parseFile(FIXTURE),
+      windowDays: 30,
+    });
+  }
+
+  // Consecutive Wednesdays, asserted as a whole sequence rather than one date:
+  // a wrong derivation tends to slip a single occurrence rather than all of
+  // them, so checking only the first would miss it. 8 March 2026 is the US DST
+  // transition, so the underlying instants shift by an hour partway down this
+  // list while the calendar dates must not.
+  //
+  // Note what this can and cannot catch. Deriving the date from the UTC
+  // instant instead of the local parts fails here under any zone ahead of
+  // UTC — verified at Asia/Tokyo and Pacific/Kiritimati — but *passes* under
+  // TZ=UTC, because that is the one offset at which the two derivations agree.
+  // CI runs UTC, so this test does not guard the regression on CI. Running the
+  // suite at a non-zero offset is what would close that, and is tracked in #65.
+  it("keeps every occurrence on its own date across a DST transition", async () => {
+    expect((await occurrences()).map((event) => event.startDate)).toEqual([
+      "2026-03-04",
+      "2026-03-11",
+      "2026-03-18",
+      "2026-03-25",
+    ]);
+  });
+
+  it("marks every occurrence all-day", async () => {
+    const events = await occurrences();
+    expect(events).not.toHaveLength(0);
+    expect(events.every((event) => event.allDay)).toBe(true);
   });
 });
 

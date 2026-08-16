@@ -27,12 +27,22 @@ const DEFAULT_WINDOW_DAYS = 30;
 const PUBLIC_PREFIX = "[PUBLIC]";
 
 /**
+ * `start`/`end` are ISO instants — the moment an event happens — and are what
+ * everything sorts and filters on.
+ *
+ * `startDate` is the extra channel all-day events need. An all-day entry names
+ * a date on a wall calendar, not a moment, and no instant can carry that date
+ * unambiguously: see {@link floatingCalendarDate}. For an all-day event it
+ * holds that date as a floating `YYYY-MM-DD` string, with no zone attached;
+ * for a timed event it is null.
+ *
  * @typedef {{
  *   id: string,
  *   title: string,
  *   start: string,
  *   end: string,
  *   allDay: boolean,
+ *   startDate: string|null,
  *   location: string|null,
  *   description: string|null,
  *   url: string|null
@@ -229,14 +239,44 @@ function stripPublicPrefix(summary) {
  * @returns {CalendarEvent}
  */
 function toCalendarEvent(entry, start, end, idSuffix = "") {
+  const allDay = entry.datetype === "date";
   return {
     id: `${entry.uid}${idSuffix}`,
     title: stripPublicPrefix(entry.summary),
     start: new Date(start).toISOString(),
     end: end ? new Date(end).toISOString() : new Date(start).toISOString(),
-    allDay: entry.datetype === "date",
+    allDay,
+    startDate: allDay ? floatingCalendarDate(start) : null,
     location: entry.location || null,
     description: entry.description || null,
     url: entry.url || null,
   };
+}
+
+/**
+ * The calendar date an all-day entry names, as a floating `YYYY-MM-DD` string.
+ *
+ * node-ical parses a date-only property (`DTSTART;VALUE=DATE:20260523`) into a
+ * Date at *local* midnight on whatever machine is running the build, tagged
+ * `dateOnly: true`. Its calendar parts are the ones the feed meant; its instant
+ * is an accident of the build machine's zone. `.toISOString()` therefore
+ * destroys the date anywhere east of Greenwich — under TZ=Asia/Tokyo the 23rd
+ * becomes `2026-05-22T15:00:00Z`, indistinguishable from a timed event at 3pm
+ * UTC on the 22nd, and no amount of care downstream can tell them apart. That
+ * lossy round trip is #30.
+ *
+ * So read the local parts straight off the Date. They are the intended date in
+ * every zone, because local midnight is exactly how node-ical built it. The
+ * same holds for the occurrences `rrule.between` yields for a recurring all-day
+ * series: those land on local midnight too.
+ *
+ * (This is the *start* date only. A multi-day all-day event's end date is #66.)
+ *
+ * @param {Date|string} start
+ * @returns {string} the date as `YYYY-MM-DD`, with no timezone attached
+ */
+function floatingCalendarDate(start) {
+  const date = new Date(start);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
