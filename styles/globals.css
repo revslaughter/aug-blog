@@ -1,4 +1,13 @@
-@import url("https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap");
+/* Merriweather — the body face — is NOT imported here. It is a variable font,
+   and its Google Fonts URL names more than one axis (`opsz,wght`). The CSS
+   pipeline in `next build` drops an @import whose URL carries a comma-separated
+   axis list: single-axis URLs like Marcellus's survive, `...:opsz,wght@...` is
+   deleted outright, with nothing in the build log to say so. The page then
+   renders in the Georgia fallback and looks merely "a bit off" rather than
+   broken. So it is loaded from a <link> in pages/_document.js instead, which never
+   passes through this pipeline. Add single-axis families here; anything with a
+   comma in the axis list belongs next to it in _document.js. */
+@import url("https://fonts.googleapis.com/css2?family=Marcellus&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
 
 /*
@@ -28,7 +37,7 @@ body {
   margin: 0;
   color: var(--color-text);
   background-color: var(--color-bg);
-  font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
+  font-family: "Merriweather", Georgia, Times, "Times New Roman", serif;
   font-size: 20px;
   line-height: 1.4;
 }

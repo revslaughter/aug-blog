@@ -428,14 +428,18 @@ workflows is caught by `npm test` rather than by a confusing rebaseline later.
 
 Four sources of drift are deliberately removed:
 
-- **Fonts.** `globals.css` pulls Marcellus, Suranna and VT323 from the Google
-  Fonts CDN. The tests intercept both font hosts and replay the responses
-  committed under `tests/visual/font-cache/`, so a font revision bump on
-  Google's side can't fail every page at once. Refresh it with
+- **Fonts.** The site pulls Marcellus and VT323 from the Google Fonts CDN via
+  `@import` in `globals.css`, and Merriweather — the body face — via a `<link>`
+  in `pages/_document.js`. That split is not stylistic: `next build` silently
+  drops an `@import` whose URL carries a comma-separated axis list, which every
+  multi-axis variable font has (`...:opsz,wght@...`), so those have to come in
+  through a `<link>`. The tests intercept both font hosts and replay the
+  responses committed under `tests/visual/font-cache/`, so a font revision bump
+  on Google's side can't fail every page at once. Refresh it with
   `node scripts/update-font-cache.mjs` when you deliberately want newer files
-  (or after changing the `@import`s), then regenerate the baselines. Everything
-  else off-origin is blocked outright, so a slow third party can't turn a
-  screenshot into a flake.
+  (or after changing either file's font URLs — the script reads both), then
+  regenerate the baselines. Everything else off-origin is blocked outright, so a
+  slow third party can't turn a screenshot into a flake.
 - **Events.** The homepage feed comes from a live calendar and would go stale
   within days, so the test build points `CALENDAR_FIXTURE_ICS` at
   `tests/visual/fixtures/events.ics` and freezes the clock with `CALENDAR_NOW`.
