@@ -1,4 +1,13 @@
-@import url("https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap");
+/* Vollkorn — the body face — is NOT imported here. It is a variable font,
+   and requesting its italic style gives the Google Fonts URL a
+   comma-separated axis list (`ital,wght`). The CSS pipeline in `next build`
+   drops an @import whose URL carries a comma: single-axis URLs like
+   Marcellus's survive, `...:ital,wght@...` is deleted outright, with nothing
+   in the build log to say so. So it is loaded from a <link> in
+   pages/_document.js instead, which never passes through this pipeline. Add
+   families with no comma in their URL here; anything with a comma belongs
+   next to Vollkorn in _document.js. */
+@import url("https://fonts.googleapis.com/css2?family=Marcellus&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
 
 /*
@@ -28,7 +37,7 @@ body {
   margin: 0;
   color: var(--color-text);
   background-color: var(--color-bg);
-  font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
+  font-family: "Vollkorn", Georgia, Times, "Times New Roman", serif;
   font-size: 20px;
   line-height: 1.4;
 }
