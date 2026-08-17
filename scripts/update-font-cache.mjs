@@ -1,10 +1,16 @@
 /**
  * Rebuild the offline Google Fonts cache used by the screenshot tests.
  *
- * `styles/globals.css` pulls Marcellus, Suranna and VT323 from the Google
- * Fonts CDN. Letting the browser fetch those during a visual run makes the
- * baselines depend on the network and on whatever Google is serving that day —
- * a font revision bump would fail every page at once, for no change of ours.
+ * The site pulls Marcellus, Fraunces and VT323 from the Google Fonts CDN:
+ * Marcellus and VT323 through @imports in `styles/globals.css`, Fraunces
+ * through a <link> in `pages/_document.js` (that one's URL names two axes
+ * plus the italic toggle, which `next build` will not carry through an
+ * @import — see the comment at the top of globals.css). Both files are
+ * scanned below, so a family stays cached whichever way it is loaded.
+ *
+ * Letting the browser fetch those during a visual run makes the baselines
+ * depend on the network and on whatever Google is serving that day — a font
+ * revision bump would fail every page at once, for no change of ours.
  *
  * So the tests intercept both font hosts and serve the byte-for-byte responses
  * captured here (see tests/visual/fixtures.mjs). Re-run this script — and
@@ -24,6 +30,7 @@ import { devices } from "@playwright/test";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const CACHE_DIR = path.join(ROOT, "tests", "visual", "font-cache");
 const GLOBALS_CSS = path.join(ROOT, "styles", "globals.css");
+const DOCUMENT_JS = path.join(ROOT, "pages", "_document.js");
 
 // Google Fonts serves different formats per user agent (woff2 for modern
 // Chrome, ttf for anything it doesn't recognise). Ask as the exact browser the
@@ -56,12 +63,26 @@ async function fetchOrThrow(url) {
 }
 
 const globals = await readFile(GLOBALS_CSS, "utf8");
-const stylesheetUrls = [...globals.matchAll(/@import\s+url\(["']?(https:\/\/[^"')]+)["']?\)/g)].map(
+const documentJs = await readFile(DOCUMENT_JS, "utf8");
+
+const importedUrls = [...globals.matchAll(/@import\s+url\(["']?(https:\/\/[^"')]+)["']?\)/g)].map(
+  (match) => match[1]
+);
+// <link rel="stylesheet" href="https://fonts.googleapis.com/..."> in the Head.
+// Matched on the href alone rather than the whole tag, because JSX puts the
+// attributes on their own lines once Prettier has been through it.
+const linkedUrls = [...documentJs.matchAll(/href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["']/g)].map(
   (match) => match[1]
 );
 
+// Dedupe, so a family loaded both ways is fetched once.
+const stylesheetUrls = [...new Set([...importedUrls, ...linkedUrls])];
+
 if (stylesheetUrls.length === 0) {
-  console.error(`No @import font URLs found in ${path.relative(ROOT, GLOBALS_CSS)}.`);
+  console.error(
+    `No font stylesheet URLs found in ${path.relative(ROOT, GLOBALS_CSS)} or ` +
+      `${path.relative(ROOT, DOCUMENT_JS)}.`
+  );
   process.exit(1);
 }
 
