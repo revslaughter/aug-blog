@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { ORGANIZATION, FORMATTED_ADDRESS } from "../util/siteMeta";
 import styles from "./navPage.module.css";
 
@@ -28,11 +29,18 @@ export default function NavPage({ page, html }) {
       {intro && <p>{intro}</p>}
       {schedule.length > 0 && (
         <dl className={styles.schedule}>
+          {/* No per-row wrapper element: the grid lives on the <dl>, so its
+              direct children are what flow into the `max-content 1fr` columns.
+              Wrapping each row in a <div> made those wrappers the grid items,
+              which laid N rows out as N columns. A keyed Fragment groups each
+              term/detail pair for React without adding a box, so the <dt> and
+              <dd> themselves are the grid children and land in the two
+              columns, row by row. */}
           {schedule.map(({ label, value }) => (
-            <div key={label}>
+            <Fragment key={label}>
               <dt>{label}</dt>
               <dd>{value}</dd>
-            </div>
+            </Fragment>
           ))}
         </dl>
       )}
