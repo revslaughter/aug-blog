@@ -1,4 +1,5 @@
 import { ORGANIZATION, FORMATTED_ADDRESS } from "../../util/siteMeta";
+import styles from "./contactDetails.module.css";
 
 /**
  * The farm's address and phone, shown when the CMS `contact_details` switch is
@@ -15,7 +16,7 @@ import { ORGANIZATION, FORMATTED_ADDRESS } from "../../util/siteMeta";
 export default function NavContactDetails({ show }) {
   if (!show) return null;
   return (
-    <ul>
+    <ul className={styles.contactList}>
       <li>
         <a target="_blank" rel="noreferrer" href={ORGANIZATION.mapsUrl}>
           {FORMATTED_ADDRESS}
