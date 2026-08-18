@@ -100,16 +100,13 @@ article > header {
   max-width: 38rem;
 }
 
-ul {
-  /*   margin: 0; */
-  list-style-type: none;
-  padding-inline-start: 0;
-}
-ul > li {
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem 0.5rem;
-}
+/* No global `ul` / `ul > li` rules. They existed for one list — the contact
+   block's address and phone — but as bare element selectors they also caught
+   every list a client writes in Markdown, stripping its bullets and turning
+   each <li> into a centred flex container (which tore <strong> onto its own
+   line). The contact block now carries that styling under its own class
+   (.contactList in components/navPage/contactDetails.module.css); Markdown
+   bodies keep the browser's real bullets and indents. */
 
 /* A gentle vine flourish, reused as a section divider wherever a page
    wants to signal "breathing room" rather than a hard rule. */
@@ -120,12 +117,6 @@ ul > li {
   margin: 0.5rem auto;
   background: url("/vine-divider.svg");
 }
-
-/*
-ul > li:before {
-  content: "\2014";
-}
-*/
 
 /* Nav scaffolding for the section overhaul (see components/layout.js).
    Static (not fixed) and wrapping, since the link list has grown from 3
