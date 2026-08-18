@@ -7,11 +7,9 @@
     ".ttf": "font/ttf"
   },
   "files": {
-    "https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap": "css2-923be9c95837.css",
+    "https://fonts.googleapis.com/css2?family=Marcellus&display=swap": "css2-12d97334069e.css",
     "https://fonts.gstatic.com/s/marcellus/v14/wEO_EBrOk8hQLDvIAF81WPoK7Es.woff2": "wEOEBrOk8hQLDvIAF81WPoK7Es-984a867c7dbd.woff2",
     "https://fonts.gstatic.com/s/marcellus/v14/wEO_EBrOk8hQLDvIAF81VvoK.woff2": "wEOEBrOk8hQLDvIAF81VvoK-fd2ac2e96d43.woff2",
-    "https://fonts.gstatic.com/s/suranna/v15/gokuH6ztGkFjWe58hA9TTlKm.woff2": "gokuH6ztGkFjWe58hA9TTlKm-b62d6930d0a7.woff2",
-    "https://fonts.gstatic.com/s/suranna/v15/gokuH6ztGkFjWe58hBNTTg.woff2": "gokuH6ztGkFjWe58hBNTTg-6882d56b4356.woff2",
     "https://fonts.googleapis.com/css2?family=VT323&display=swap": "css2-4e7f02e434f7.css",
     "https://fonts.gstatic.com/s/vt323/v18/pxiKyp0ihIEF2isQFJXGdg.woff2": "pxiKyp0ihIEF2isQFJXGdg-2fe6237cf27c.woff2",
     "https://fonts.gstatic.com/s/vt323/v18/pxiKyp0ihIEF2isRFJXGdg.woff2": "pxiKyp0ihIEF2isRFJXGdg-5b6cba468adf.woff2",
