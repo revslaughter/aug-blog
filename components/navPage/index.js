@@ -5,6 +5,7 @@ import NavContactDetails from "./contactDetails";
 import NavContent from "./content";
 import NavStoreLink from "./storeLink";
 import NavNote from "./note";
+import styles from "./navPage.module.css";
 
 /**
  * Renders one top-level section page from `_nav/` by composing a component per
@@ -27,7 +28,7 @@ import NavNote from "./note";
 export default function NavPage({ page, html }) {
   const { title, intro, schedule, storeLink, contactDetails, note } = page;
   return (
-    <article>
+    <article className={styles.navPage}>
       <NavTitle title={title} />
       <NavIntro intro={intro} />
       <NavSchedule schedule={schedule} />
