@@ -1,3 +1,32 @@
+/*
+ * The status line at the foot of a section, from the CMS `note` field — e.g.
+ * "Hours and current availability are coming soon." Previously a stray italic
+ * paragraph that read like an afterthought; now an intentional, understated
+ * status element set apart from the prose above it.
+ *
+ * A top hairline and a small uppercase "Note" label mark it as a deliberate
+ * aside, and it is set a notch smaller than body copy. The label carries the
+ * quiet, muted register (small caps, accent green); the status copy itself
+ * stays at the readable text colour so it clears AA at this smaller size, where
+ * a low-contrast grey would not.
+ */
 .note {
-  font-style: italic;
+  margin: 2.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-style: normal;
+  color: var(--color-text);
+}
+
+.note::before {
+  content: "Note";
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-green);
 }
