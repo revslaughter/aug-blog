@@ -1,10 +1,14 @@
 /**
  * Rebuild the offline Google Fonts cache used by the screenshot tests.
  *
- * `styles/globals.css` pulls Marcellus, Suranna and VT323 from the Google
- * Fonts CDN. Letting the browser fetch those during a visual run makes the
- * baselines depend on the network and on whatever Google is serving that day —
- * a font revision bump would fail every page at once, for no change of ours.
+ * `styles/globals.css` pulls Marcellus and VT323 from the Google Fonts CDN.
+ * Vollkorn, the body face, is loaded separately via next/font/google in
+ * pages/_app.js, which self-hosts it as a static asset at build time — it
+ * never touches this cache and needs no entry here.
+ *
+ * Letting the browser fetch those during a visual run makes the baselines
+ * depend on the network and on whatever Google is serving that day — a font
+ * revision bump would fail every page at once, for no change of ours.
  *
  * So the tests intercept both font hosts and serve the byte-for-byte responses
  * captured here (see tests/visual/fixtures.mjs). Re-run this script — and

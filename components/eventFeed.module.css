@@ -25,6 +25,12 @@
 }
 
 .list {
+  /* Own the reset the global `ul` rule used to give every list: no bullets, no
+     indent, no default margin. That rule has been removed so Markdown bodies
+     get real bullets back, so this list states it for itself. */
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 0;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
