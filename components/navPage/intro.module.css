@@ -1,0 +1,17 @@
+/*
+ * The lead paragraph. It opens the page directly under the h1, so it is sized
+ * and coloured to read as an introduction rather than as body prose.
+ *
+ * 1.2rem = 24px at the site's 20px root, one notch above the 20px `.article-content`
+ * body and clearly below the headings. Regular weight, looser leading, and the
+ * warm gold accent (the palette's "date-amber") set it apart from both the green
+ * headings and the brown body copy without shouting. 24px is WCAG large text, so
+ * gold on the cream surface clears the 3:1 large-text bar.
+ */
+.intro {
+  margin: 0.75rem 0 1.75rem;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  font-weight: normal;
+  color: var(--color-accent-gold);
+}

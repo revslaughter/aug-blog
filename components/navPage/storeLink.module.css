@@ -1,3 +1,47 @@
+/*
+ * The page's one call to action. Previously the <a> inherited a 1.5rem
+ * font-size (30px at the 20px root — identical to an h2), so the site's only
+ * button read as a heading. It is now a real button: a solid accent-green pill
+ * with white text at body scale.
+ *
+ * Contrast: #fff on --color-accent-green (#4c6a30) is ~6.15:1, clearing WCAG AA
+ * (4.5:1) for normal text. The hover swaps to --color-accent-gold (#a8621b),
+ * where #fff is ~4.74:1, still AA.
+ */
 .storeLink {
-  font-size: 1.5rem;
+  margin: 2rem 0;
+}
+
+.storeLink a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0.6rem 1.75rem;
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--color-accent-green);
+  border: 2px solid transparent;
+  border-radius: 0.6rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.05s ease;
+}
+
+.storeLink a:hover,
+.storeLink a:focus {
+  color: #fff;
+  background-color: var(--color-accent-gold);
+  box-shadow: 0 0.4rem 0.9rem rgba(70, 53, 42, 0.18);
+}
+
+.storeLink a:active {
+  transform: translateY(1px);
+}
+
+.storeLink a:focus-visible {
+  outline: 3px solid var(--color-accent-grape);
+  outline-offset: 3px;
 }
