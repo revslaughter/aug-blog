@@ -1,3 +1,5 @@
+import styles from "./title.module.css";
+
 /**
  * The page's big heading, from the CMS `title` field.
  *
@@ -6,10 +8,10 @@
  *
  * @param {{title: string}} props
  */
-export default function NavTitle({ title }) {
+export default function NavTitle({title}) {
   return (
     <header>
-      <h1>{title}</h1>
+      <h1 className={styles.navHeading}>{title}</h1>
     </header>
   );
 }
