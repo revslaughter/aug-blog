@@ -44,7 +44,7 @@
  * centred measure.
  */
 .navPage :global(.article-content) {
-  max-width: none;
+  max-width: 800px;
   margin-left: 0;
   margin-right: 0;
 }
