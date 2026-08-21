@@ -32,8 +32,6 @@ body {
   margin: 0;
   color: var(--color-text);
   background-color: var(--color-bg);
-  font-size: 20px;
-  line-height: 1.4;
 }
 
 /* The wrapper div in pages/_app.js — font-family lives here, not on
@@ -93,9 +91,7 @@ article > header {
 }
 
 .article-content {
-  text-align: justify;
-  font-size: 20px;
-  line-height: 1.6;
+  line-height: 1.5;
   margin: 1rem auto;
   max-width: 38rem;
 }

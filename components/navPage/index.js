@@ -6,6 +6,7 @@ import NavContent from "./content";
 import NavStoreLink from "./storeLink";
 import NavNote from "./note";
 import styles from "./navPage.module.css";
+import PlantDivider from "../plantDivider";
 
 /**
  * Renders one top-level section page from `_nav/` by composing a component per
@@ -28,14 +29,17 @@ import styles from "./navPage.module.css";
 export default function NavPage({ page, html }) {
   const { title, intro, schedule, storeLink, contactDetails, note } = page;
   return (
-    <article className={styles.navPage}>
-      <NavTitle title={title} />
-      <NavIntro intro={intro} />
-      <NavSchedule schedule={schedule} />
-      <NavContactDetails show={contactDetails} />
-      <NavContent html={html} />
-      <NavStoreLink show={storeLink} />
-      <NavNote note={note} />
-    </article>
-  );
+		<article className={styles.navPage}>
+			<NavTitle title={title} />
+			<NavIntro intro={intro} />
+			<NavSchedule schedule={schedule} />
+			<PlantDivider />
+			<NavContent html={html} />
+			<NavNote note={note} />
+			{html && storeLink ? <PlantDivider /> : ""}
+			<NavStoreLink show={storeLink} />
+			<NavContactDetails show={contactDetails} />
+			<PlantDivider leaves />
+		</article>
+	);
 }
