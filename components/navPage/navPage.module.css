@@ -1,0 +1,50 @@
+/*
+ * The single reading column for a section page, applied to the composing
+ * <article> in index.js.
+ *
+ * Every block a section renders — title, intro, schedule, body, store link,
+ * note — lives inside one measure and shares one left edge, instead of each
+ * choosing its own width and alignment. Before this, the intro and schedule ran
+ * to the card's full width, the Markdown body centred itself in a narrower
+ * measure of its own, and the title shrink-wrapped to centre: four left edges
+ * on one page, and a 90-plus-character line where nothing grouped.
+ *
+ * 600px, not an rem or ch measure, and deliberately so. The site sets
+ * `html { font-size: 20px }`, so a rem here reads a quarter larger than it
+ * looks; and Suranna's zero is wide enough that a ch-based measure lands well
+ * past a comfortable line. An absolute width is the one that means what it says.
+ *
+ * The column is left-aligned in the card rather than centred, so its left edge
+ * stays where the page's content already began — the card's own padding.
+ */
+.navPage {
+  max-width: 600px;
+}
+
+/*
+ * Left-align the title into the column. The <header> comes from the NavTitle
+ * component as a direct child of this article, so the global
+ * `article > header` rule centres its box by shrink-wrapping to `max-content`
+ * with auto margins — which makes a one-line title ("About") look centred and a
+ * wrapping one ("Sustainable Living Workshops") look left-aligned, the same
+ * template with its alignment decided by how long the string happens to be.
+ * Scoped here so posts and recipes, which share that global rule, are untouched.
+ */
+.navPage > header {
+  margin: 0;
+  max-width: none;
+}
+
+/*
+ * Let the Markdown body (the NavContent component's `.article-content` div)
+ * fill the shared column instead of centring itself in its own narrower measure
+ * (the global `.article-content` sets `max-width: 38rem` with auto side
+ * margins). Without this the prose starts further in than the intro and
+ * schedule above it. Scoped to the nav page so posts and recipes keep their own
+ * centred measure.
+ */
+.navPage :global(.article-content) {
+  max-width: 800px;
+  margin-left: 0;
+  margin-right: 0;
+}

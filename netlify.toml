@@ -4,6 +4,29 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # The build's own timezone changes what the site says, so it is pinned rather
+  # than inherited.
+  #
+  # Events come from a calendar, and an all-day entry is a date on a wall
+  # calendar with no timezone attached. node-ical has to return a JS Date, which
+  # can only hold an instant, so it picks local midnight — the build machine's.
+  # The rendered date is immune to this (see startDate in util/googleCalendar.js,
+  # issue #30), but selection is not yet: the lookahead window and the sort still
+  # compare that instant, so at a positive offset an all-day event just inside
+  # the window can be dropped and one just outside it published. Sorting happens
+  # before the six-card limit is applied, so the drift can change which events
+  # ship, not merely their order. That is issue #70.
+  #
+  # Netlify's builders run UTC today, so this pins what was already true rather
+  # than changing anything. It is here because the alternative is depending on a
+  # default nobody wrote down, which is exactly how #30 stayed broken. Note the
+  # screenshot suite pins TZ: "UTC" too (playwright.config.mjs), so it cannot
+  # catch this class of bug for us.
+  #
+  # Once #70 lands, selection keys on the calendar date and this line stops
+  # being load-bearing — worth keeping anyway, since a reproducible build should
+  # not read the host clock's zone at all.
+  TZ = "UTC"
   # Never build the authoring templates or test fixtures as pages, on any
   # Netlify context — production, deploy previews, and the beta client preview
   # alike. The default already excludes them (see util/contentFiles.mjs); this

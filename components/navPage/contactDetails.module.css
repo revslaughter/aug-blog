@@ -1,0 +1,14 @@
+/* The address-and-phone block. This is the one list the old global
+   `ul` / `ul > li` rules were written for — unbulleted, and each row centred.
+   Scoped to this component so that styling stays on this list alone instead of
+   leaking into every Markdown body. */
+.contactList {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.contactList li {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+}

@@ -1,4 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Marcellus&family=Suranna&display=swap");
+/* Vollkorn — the body face — is NOT imported here. It's loaded through
+   next/font/google in pages/_app.js instead, which self-hosts it at build
+   time and exposes it as the --font-body custom property picked up by
+   .font-root below. See the comment in _app.js for why. */
+@import url("https://fonts.googleapis.com/css2?family=Marcellus&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
 
 /*
@@ -28,9 +32,13 @@ body {
   margin: 0;
   color: var(--color-text);
   background-color: var(--color-bg);
-  font-family: "Suranna", Georgia, Times, "Times New Roman", serif;
-  font-size: 20px;
-  line-height: 1.4;
+}
+
+/* The wrapper div in pages/_app.js — font-family lives here, not on
+   html/body, because next/font's --font-body custom property is set on this
+   element and custom properties only cascade to descendants. */
+.font-root {
+  font-family: var(--font-body), Georgia, Times, "Times New Roman", serif;
 }
 
 a {
@@ -83,23 +91,18 @@ article > header {
 }
 
 .article-content {
-  text-align: justify;
-  font-size: 20px;
-  line-height: 1.6;
+  line-height: 1.5;
   margin: 1rem auto;
   max-width: 38rem;
 }
 
-ul {
-  /*   margin: 0; */
-  list-style-type: none;
-  padding-inline-start: 0;
-}
-ul > li {
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem 0.5rem;
-}
+/* No global `ul` / `ul > li` rules. They existed for one list — the contact
+   block's address and phone — but as bare element selectors they also caught
+   every list a client writes in Markdown, stripping its bullets and turning
+   each <li> into a centred flex container (which tore <strong> onto its own
+   line). The contact block now carries that styling under its own class
+   (.contactList in components/navPage/contactDetails.module.css); Markdown
+   bodies keep the browser's real bullets and indents. */
 
 /* A gentle vine flourish, reused as a section divider wherever a page
    wants to signal "breathing room" rather than a hard rule. */
@@ -110,12 +113,6 @@ ul > li {
   margin: 0.5rem auto;
   background: url("/vine-divider.svg");
 }
-
-/*
-ul > li:before {
-  content: "\2014";
-}
-*/
 
 /* Nav scaffolding for the section overhaul (see components/layout.js).
    Static (not fixed) and wrapping, since the link list has grown from 3
