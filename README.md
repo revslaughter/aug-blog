@@ -14,8 +14,10 @@ published without a developer in the loop.
 
 - [Quick start](#quick-start) · [Scripts](#scripts) · [Project structure](#project-structure)
 - [Section pages](#section-pages-_nav) · [Posts and recipes](#posts-and-recipes) · [Events](#upcoming-events-google-calendar)
-- [The editor](#the-editor-admin) · [Screenshot tests](#screenshot-tests) · [SEO](#seo)
-- [Branching and deployment](#branching-and-deployment) · [CI](#ci)
+- [The editor](#the-editor-admin) · [SEO](#seo)
+
+See also: [CONTRIBUTING.md](CONTRIBUTING.md) for the branching model and CI,
+[docs/TESTING.md](docs/TESTING.md) for the screenshot-testing workflow.
 
 ## Tech stack
 
@@ -51,8 +53,8 @@ npm run dev        # dev server at http://localhost:3000
 | `npm run baseline:check` | Run the comparison in that container without rewriting anything |
 
 `npm run test:visual:update` also exists, but prefer `npm run baseline` — see
-[Rebaselining](#when-a-change-is-intentional) for why running it on the host is
-a trap.
+[Rebaselining](docs/TESTING.md#when-a-change-is-intentional) for why running it
+on the host is a trap.
 
 `dev` and `build` both run `generate` first (via `predev`/`prebuild`), which
 rewrites two build artefacts. Neither is committed:
@@ -327,135 +329,6 @@ thing it has to stay in step with is `public/admin/config.yml` — the fields in
 the editor are defined there, and a guide describing different ones is worse
 than none.
 
-## Screenshot tests
-
-Every page is captured at four viewports and compared, pixel by pixel, against a
-committed baseline. A page fails if **more than 0.1% of its pixels changed**.
-This is the safety net for CSS edits: a tweak to `globals.css` that quietly
-breaks the recipe pages on mobile shows up as a failing check rather than a
-client email.
-
-That threshold is deliberately tight, and set from measurement — the reasoning
-is in `playwright.config.mjs`. The short version: baselines generated in the
-pinned container reproduce **exactly**, so there is no antialiasing noise to
-leave room for, and slack only buys the chance to miss something. At the
-previous 1%, restoring the nav bar changed all 64 baselines but failed only 36
-of them — on a sparse page, most of what a 48px bar displaces is flat background
-that looks identical shifted, so 28 baselines would have gone on passing while
-depicting a site with no navigation.
-
-```
-tests/visual/
-  routes.mjs            The pages under test (add new pages here)
-  pages.spec.mjs        One test per route per viewport, plus a coverage guard
-  fixtures.mjs          Serves fonts offline, blocks all other network access
-  stabilize.mjs         Waits out lazy images, webfonts and transitions
-  fixtures/events.ics   The fixed calendar the homepage is built against
-  fixtures/content/     The fixed posts and recipes the blog is built against
-  font-cache/           Captured Google Fonts responses
-  __screenshots__/      The baselines, one directory per viewport
-```
-
-Fifteen routes plus one interaction — the event modal, opened on the fixture
-entry that carries every optional field — at four viewports: 64 baselines.
-Viewports are `mobile` 375×667, `tablet` 768×1024, `desktop` 1280×800, `wide`
-1920×1080, defined in `playwright.config.mjs` alongside the threshold.
-`VISUAL_MAX_DIFF_RATIO` overrides it for a one-off run, which is useful for
-measuring how far off a change actually is before deciding what to do.
-
-Adding a page under `pages/` without adding it to `routes.mjs` fails the "every
-exported route has a screenshot baseline" test, so nothing slips out of coverage
-silently.
-
-### Running them
-
-```bash
-npm run test:visual          # build, serve out/, compare against baselines
-npm run test:visual:report   # open the report — expected/actual/diff, side by side
-```
-
-The config rebuilds the site and serves `out/` over `scripts/serve-static.mjs`,
-which reproduces Netlify's clean URLs so the screenshots match what ships.
-
-### When a change is intentional
-
-A failing screenshot means "something moved", not "something broke". Look at the
-diff in the report first. If the new rendering is what you wanted, regenerate the
-baselines and commit them as part of the same change, so the PR shows the visual
-change alongside the CSS that caused it.
-
-**Never regenerate on the host.** Pixel comparison is only meaningful when the
-renderer is identical, and a Mac renders text differently from the Linux
-container CI uses. The trap is that `--update-snapshots` rewrites *every*
-baseline that differs, not only the ones you meant to change — so rebaselining
-six pages on a Mac also silently rewrites pages you never touched, and CI goes
-red on all of them. Measured on this repo: `/404` renders 1037 pixels different
-outside the image, on a page nothing had touched.
-
-Two ways to do it correctly.
-
-**Locally, through Docker** — the everyday route:
-
-```bash
-npm run baseline          # regenerate baselines in the pinned container
-npm run baseline:check    # run the comparison there, without rewriting anything
-```
-
-`scripts/visual-container.mjs` mounts the working tree into
-`mcr.microsoft.com/playwright:v1.56.1-noble` and runs `test:visual:update`
-inside it, so the host OS stops mattering. It masks `node_modules` with a
-container-only volume, so the Linux install does not overwrite your native
-binaries and break `npm run dev`; caches npm downloads in a named volume; and
-hands ownership back on Linux, where the container would otherwise leave
-root-owned PNGs. Extra arguments pass through —
-`npm run baseline:check -- --project=desktop`. Set `VISUAL_CONTAINER_PRINT=1` to
-print the `docker run` command instead of executing it.
-
-Run `npm run baseline:check` before pushing and confirm it is green, then check
-`git status`: only the pages you actually changed should appear. Anything else in
-that diff means the renderer disagreed and is worth stopping for.
-
-**In CI** — when Docker is not available: **Actions → Refresh screenshot
-baselines → Run workflow**, pick your branch, say why, and it pushes the updated
-PNGs to that branch.
-
-The image tag is derived from the installed `@playwright/test` rather than
-written into the script, and `util/playwrightImage.test.js` fails if either
-workflow drifts from it — so bumping the dependency without updating the
-workflows is caught by `npm test` rather than by a confusing rebaseline later.
-
-### What makes the screenshots reproducible
-
-Four sources of drift are deliberately removed:
-
-- **Fonts.** `globals.css` pulls Marcellus, Suranna and VT323 from the Google
-  Fonts CDN. The tests intercept both font hosts and replay the responses
-  committed under `tests/visual/font-cache/`, so a font revision bump on
-  Google's side can't fail every page at once. Refresh it with
-  `node scripts/update-font-cache.mjs` when you deliberately want newer files
-  (or after changing the `@import`s), then regenerate the baselines. Everything
-  else off-origin is blocked outright, so a slow third party can't turn a
-  screenshot into a flake.
-- **Events.** The homepage feed comes from a live calendar and would go stale
-  within days, so the test build points `CALENDAR_FIXTURE_ICS` at
-  `tests/visual/fixtures/events.ics` and freezes the clock with `CALENDAR_NOW`.
-  The fixture is a real iCalendar file parsed by the real `util/googleCalendar.js`,
-  so the `[PUBLIC]` filter and recurring-event expansion are exercised on the way
-  to the screenshot — `tests/visual/fixtures/README.md` covers what each entry is
-  for.
-- **Published content.** The blog and recipe indexes list real posts, so every
-  post the client publishes would change `posts-index`'s baseline and fail this
-  check on a commit that touched no code. The test build points
-  `CONTENT_FIXTURE_DIR` at `tests/visual/fixtures/content`, so these baselines
-  move only when the layout does. It also buys back coverage: `_posts/` and
-  `_recipes/` are empty in the repo, so without it the article and recipe layouts
-  would have no screenshots at all.
-- **Time and drafts.** The test build pins `TZ=UTC` (belt and braces —
-  `formatDisplayDate` already renders post dates from UTC parts) and sets
-  `INCLUDE_DRAFT_CONTENT=false`, so a scratch `test-*` draft in your working tree
-  can't appear on the blog index and fail the comparison on your machine but
-  nowhere else.
-
 ## SEO
 
 Site-wide SEO is centralized:
@@ -467,72 +340,8 @@ Site-wide SEO is centralized:
 - `components/structuredData.js` — `LocalBusiness` JSON-LD on the homepage.
 - `public/robots.txt` and the generated `sitemap.xml`.
 
-## Branching and deployment
+## Contributing
 
-Two tracks, meeting only at `main`.
-
-**Code** moves through integration:
-
-```
-feature/*  →  alpha  →  beta  →  main
-```
-
-- **`feature/*`** — individual pieces of work
-- **`alpha`** — integration branch, where features merge first and conflicts are
-  resolved
-- **`beta`** — client preview of code (Netlify branch deploy)
-- **`main`** — production, deployed to the live site
-
-**Content** does not:
-
-```
-main  →  publish  →  main
-```
-
-- **`publish`** — cut from `main`, receives commits only from the editor at
-  `/admin`, merged back into `main` to go live, then re-cut from `main`
-
-Keeping them apart is the point: `publish` never carries unreleased code, so
-putting a blog post live cannot ship a half-finished feature, and a code release
-cannot be held up waiting on content.
-
-Those five branches are the whole set. Feature and `claude/*` branches are
-deleted once merged — a long list of stale branches makes it impossible to tell
-at a glance what is actually in flight.
-
-## CI
-
-GitHub Actions runs on every push to `main`, `alpha`, `beta` and `feature/**`,
-and on pull requests targeting the first three:
-
-| Job | What it runs |
-| --- | ------------ |
-| Lint | `npm run lint` |
-| Build | `npm run build` |
-| Test | `npm run test:ci` |
-| Screenshots | `npm run test:visual`, in the pinned Playwright container |
-| Security Audit | `npm audit --audit-level=high`, non-blocking |
-
-Lint gates Build, Test and Screenshots; the audit runs independently. The
-screenshot job uses the same container image as `npm run baseline`, which is
-what makes its comparisons meaningful; on failure it uploads the report and
-diffs as an artifact for 14 days.
-
-The audit job is `continue-on-error` because a static export has no server
-runtime — the advisories it reports are build-time tooling. It is currently red
-and being ignored, which is a habit worth not teaching: issue #32 tracks either
-fixing the advisories or dropping the check.
-
-Netlify builds with `npm ci && npm run build` and publishes `out/`.
-
-Three operational workflows sit alongside CI, all dispatchable from the
-**Actions** tab:
-
-| Workflow | Trigger | What it does |
-| --- | --- | --- |
-| Daily content refresh | 13:00 UTC daily | Fires the Netlify build hook so the calendar feed stays current |
-| Refresh screenshot baselines | Manual | Regenerates baselines in the pinned container and commits them to your branch |
-| Sync publish with main | Push to `main` | Rebases `publish` onto `main`, so the client's preview runs production code |
-
-GitHub only offers `workflow_dispatch` for workflows that exist on the default
-branch, so all three must stay on `main`.
+For the git branching model, deployment tracks and CI pipeline, see
+[CONTRIBUTING.md](CONTRIBUTING.md). For the screenshot-testing workflow, see
+[docs/TESTING.md](docs/TESTING.md).
