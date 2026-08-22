@@ -48,3 +48,26 @@
   margin-left: 0;
   margin-right: 0;
 }
+
+/*
+ * Vertical rhythm. Before this every block sat the same distance from the next,
+ * so nothing grouped and the page read as unrelated widgets in a stack.
+ *
+ * Consecutive blocks sit one step apart (1rem = 20px at the 20px root). The
+ * plant dividers do the larger separation between groups — title/intro/schedule,
+ * then the body, then the store link and contact block — so a group break reads
+ * as one.
+ *
+ * The flow selector carries the `article` element so it is more specific than a
+ * child component's own single-class margin (`.schedule`, `.article-content`),
+ * and so wins the block-to-block gap deterministically regardless of stylesheet
+ * order. The divider rule is more specific still, so a divider keeps the 2rem
+ * gap rather than the 1rem one.
+ */
+article.navPage > * + * {
+  margin-top: 1rem;
+}
+
+.navPage :global(.vine-divider) {
+  margin-block: 2rem;
+}

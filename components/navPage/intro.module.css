@@ -1,0 +1,8 @@
+/* The opening line. Larger than the 20px body so it reads as a lead, and set
+   in the body colour so it stays high-contrast. Note `html { font-size: 20px }`
+   in globals.css, so 1.25rem here renders at 25px. */
+.intro {
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: var(--color-text);
+}
