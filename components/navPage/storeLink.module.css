@@ -1,4 +1,25 @@
+/* The single call to action. It was `font-size: 1.5rem` (30px at the 20px
+   root), identical in size to an h2, so it read as a heading rather than a
+   button. Render it as a real button instead: body-sized text, left-aligned
+   into the page's one column, with the green/grape accent used elsewhere. */
 .storeLink {
-  font-size: 1.5rem;
-  text-align: center;
+  text-align: left;
+  margin-block: 0;
+}
+
+.storeLink a {
+  display: inline-block;
+  font-size: 1rem;
+  text-decoration: none;
+  color: var(--color-surface);
+  background-color: var(--color-accent-green);
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease;
+}
+
+.storeLink a:hover,
+.storeLink a:focus {
+  color: var(--color-surface);
+  background-color: var(--color-accent-grape);
 }
