@@ -75,7 +75,8 @@ pages/
   posts/              Blog index + dynamic post pages
   recipes/            Recipe index + dynamic recipe pages
   _app.js             Global shell
-components/           Layout, header, NavPage, RecentPosts, Seo, StructuredData
+components/           Layout, header, NavPage, RecentPosts, Seo, StructuredData,
+                       EventFeed, PlantDivider, ResponsiveSplit
 util/                 Content loaders, navPages, siteMeta (SEO source of truth)
 _nav/                 The top-level pages and the nav bar, written via /admin
 _posts/               Blog posts (Markdown + frontmatter), written via /admin
@@ -84,7 +85,8 @@ public/               Static assets; public/admin/ is the CMS
 scripts/              Nav + sitemap generators, static server, container runner
 styles/               CSS modules + globals
 tests/visual/         Playwright screenshot tests and their committed baselines
-.github/workflows/    CI, daily calendar rebuild, baseline refresh
+.github/workflows/    CI, daily calendar rebuild, baseline refresh, publish sync,
+                      alpha/beta back-merge
 ```
 
 ## Section pages (`_nav/`)
@@ -149,8 +151,11 @@ because git does not track empty directories.
 ### Draft content
 
 Files named `test-*` are scratch drafts. They are gitignored, so they never
-leave your machine, and they are **not built into anything that deploys** — you
-can leave one half-written without it reaching the site.
+leave your machine, and they are **not built into anything that deploys** —
+you can leave one half-written without it reaching the site. The bare slugs
+`test` and `template` are excluded from the build the same way but are *not*
+gitignored, kept only so a file literally named `test.md` or `template.md`
+can't ship by accident.
 
 The switch is `INCLUDE_DRAFT_CONTENT`, defined in `util/contentFiles.mjs`:
 

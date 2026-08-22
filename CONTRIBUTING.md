@@ -65,7 +65,7 @@ fixing the advisories or dropping the check.
 
 Netlify builds with `npm ci && npm run build` and publishes `out/`.
 
-Three operational workflows sit alongside CI, all dispatchable from the
+Four operational workflows sit alongside CI, all dispatchable from the
 **Actions** tab:
 
 | Workflow | Trigger | What it does |
@@ -73,6 +73,7 @@ Three operational workflows sit alongside CI, all dispatchable from the
 | Daily content refresh | 13:00 UTC daily | Fires the Netlify build hook so the calendar feed stays current |
 | Refresh screenshot baselines | Manual | Regenerates baselines in the pinned container and commits them to your branch |
 | Sync publish with main | Push to `main` | Rebases `publish` onto `main`, so the client's preview runs production code |
+| Back-merge main into alpha and beta | Push to `main` (also manual) | Merges `main` back into `alpha` and `beta` via pull request, so code branches don't drift from what's live |
 
 GitHub only offers `workflow_dispatch` for workflows that exist on the default
-branch, so all three must stay on `main`.
+branch, so all four must stay on `main`.
