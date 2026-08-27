@@ -8,6 +8,7 @@ import {
   toIsoDate,
   byNewestFirst,
 } from "./contentFiles.mjs";
+import { normalizeEmbeds } from "./embeds";
 
 /** Resolved per call, so CONTENT_FIXTURE_DIR is read at build time. */
 const postsDir = () => contentDirsFromEnv().postsDir;
@@ -19,6 +20,7 @@ const postsDir = () => contentDirsFromEnv().postsDir;
  *   author: string,
  *   pubdate: string|null,
  *   slug: string,
+ *   embeds: import("./embeds").ResolvedEmbed[],
  *   content: string}} Post
  */
 
@@ -27,6 +29,12 @@ const postsDir = () => contentDirsFromEnv().postsDir;
  *
  * `pubdate` comes back as an ISO string or null — see `toIsoDate` for why a
  * malformed date degrades instead of throwing.
+ *
+ * `embeds` is validated here rather than at render time for the same reason
+ * the date is coerced here: this is the one place frontmatter stops being
+ * whatever someone typed and becomes the shape the components are allowed to
+ * assume. A link that does not resolve is dropped, so the post publishes
+ * without it — see `util/embeds.js`.
  *
  * @param {string} slug The filename of the post, without extension
  * @param {string} [dir] Directory to read from; overridable for tests
@@ -42,6 +50,7 @@ export function getPostForSlug(slug, dir = postsDir()) {
     author: author ?? null,
     pubdate: toIsoDate(pubdate),
     slug,
+    embeds: normalizeEmbeds(data.embeds),
     content,
   };
 }

@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
 import ErrorPage from "next/error";
 import Layout from "../../components/layout";
+import PostEmbeds from "../../components/postEmbeds";
 import Seo from "../../components/seo";
 import { getAllPosts, getPostForSlug } from "../../util/getPostForSlug";
 import { formatDisplayDate } from "../../util/contentFiles.mjs";
@@ -36,6 +37,12 @@ export default function Post(props) {
           className="article-content"
           dangerouslySetInnerHTML={{ __html: props.renderedContent }}
         ></div>
+        {/* Videos and maps come from a form field rather than from the text
+            above, because that text reaches the browser through
+            dangerouslySetInnerHTML and is only safe while remark-html keeps
+            dropping raw HTML. See util/embeds.js for the whole argument, and
+            components/postEmbeds.js for why they sit here and not mid-post. */}
+        <PostEmbeds embeds={props.embeds} />
       </article>
     </Layout>
   );

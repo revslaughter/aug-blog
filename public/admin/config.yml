@@ -222,6 +222,60 @@ collections:
         required: true
         modes: [rich_text, raw]
         default_mode: rich_text
+      # Videos and maps.
+      #
+      # A list of links rather than something pasted into the post text, and
+      # that is a security decision, not a styling one. The post text is
+      # rendered to HTML and inserted into the page wholesale, which is only
+      # safe while the Markdown renderer keeps throwing raw HTML away — so a
+      # pasted `<iframe>` does nothing today and must keep doing nothing. What
+      # arrives from here is a link, checked against a list of two providers,
+      # and the site builds the frame itself. util/embeds.js has the argument
+      # in full; components/postEmbeds.js has the reasoning for why these
+      # render below the post rather than inside it.
+      #
+      # The provider options below are the keys of EMBED_PROVIDERS in
+      # util/embeds.js, and util/embeds.test.js fails if the two lists stop
+      # matching — an option offered here that the code does not know about is
+      # a box the client can fill in that produces nothing on the page.
+      - label: Videos and maps
+        name: embeds
+        widget: list
+        required: false
+        label_singular: Video or map
+        summary: "{{fields.provider}} — {{fields.url}}"
+        collapsed: false
+        hint: >-
+          Optional. Anything you add appears underneath the post, in the order
+          you list it here.
+        fields:
+          - label: What it is
+            name: provider
+            widget: select
+            required: true
+            default: youtube
+            options:
+              - { label: YouTube video, value: youtube }
+              - { label: Google map, value: google_maps }
+          - label: Link
+            name: url
+            widget: string
+            required: true
+            hint: >-
+              For a video: the link from the address bar when you are watching
+              it on YouTube, or the "Share" link. For a map: open the place in
+              Google Maps and copy the link from the browser's address bar —
+              the short maps.app.goo.gl one from the Share button does not
+              work. If a link is not one of these, nothing appears where it
+              would have been; the rest of the post is unaffected.
+          - label: Caption
+            name: caption
+            widget: string
+            required: false
+            hint: >-
+              Optional. A line underneath saying what it is — worth writing,
+              because it is also what is read aloud to someone using a screen
+              reader.
 
   - name: recipes
     label: Recipes
