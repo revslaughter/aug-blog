@@ -28,6 +28,12 @@
 # production
 /build
 
+# agent worktrees — checkouts an agent session creates to work on a branch in
+# isolation. They are working directories, not content: each one is a full
+# second copy of the repo whose real output arrives as a commit on its own
+# branch. Committing them would nest the repository inside itself.
+/.claude/worktrees/
+
 # misc
 .DS_Store
 *.pem

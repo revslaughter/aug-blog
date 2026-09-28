@@ -169,13 +169,32 @@ export function publishableSlugs(filenames, { includeDrafts } = {}) {
  * A date the author typed oddly should degrade, not take the site down, so
  * anything unparseable returns null and callers render without a date.
  *
+ * A bare `YYYY-MM-DD` string parses as UTC midnight per the ECMA-262 spec, so
+ * that shape is left to the native parser. Anything else free-form (`June
+ * 25, 2026`) is implementation-defined and V8 parses it in the *local*
+ * timezone, so a pubdate typed that way landed on the wrong day west of UTC.
+ * These are calendar dates, not instants, so the fix takes the parsed
+ * calendar day and re-anchors it at UTC midnight rather than trusting
+ * whatever offset the runtime guessed.
+ *
  * @param {Date|string|number|null|undefined} value
  * @returns {string|null} ISO 8601 string, or null if absent/unparseable
  */
 export function toIsoDate(value) {
   if (value === null || value === undefined || value === "") return null;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (value instanceof Date || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(
+    Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+  ).toISOString();
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

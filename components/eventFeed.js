@@ -3,12 +3,16 @@ import Image from "next/image";
 import styles from "./eventFeed.module.css";
 
 /**
+ * `start`/`end` are ISO instants, used here only for ordering. `displayDate` is
+ * the finished date line to print — already formatted, already carrying the
+ * `CDT`/`CST` label on timed events — see util/googleCalendar.js.
+ *
  * @typedef {{
  *   id: string,
  *   title: string,
  *   start: string,
  *   end?: string,
- *   allDay?: boolean,
+ *   displayDate?: string,
  *   location?: string|null,
  *   description?: string|null,
  *   url?: string|null
@@ -136,7 +140,7 @@ function linkifyText(text) {
 }
 
 function EventCard({ event, isSelected, onSelect }) {
-  const { title, start, allDay, location, description } = event;
+  const { title, location, description } = event;
   const { preview, isTruncated } = description
     ? truncateDescription(description)
     : {};
@@ -150,7 +154,7 @@ function EventCard({ event, isSelected, onSelect }) {
         aria-haspopup="dialog"
         aria-label={`View details for ${title}`}
       />
-      <div className={styles.date}>{formatEventDate(start, allDay)}</div>
+      <div className={styles.date}>{event.displayDate}</div>
       <div className={styles.title}>{title}</div>
       {location && <div className={styles.location}>{location}</div>}
       {description && (
@@ -216,9 +220,7 @@ function EventModal({ event, onClose }) {
           >
             &times;
           </button>
-          <div className={styles.date}>
-            {formatEventDate(event.start, event.allDay)}
-          </div>
+          <div className={styles.date}>{event.displayDate}</div>
           <h3 className={styles.modalTitle}>{event.title}</h3>
           {event.location && (
             <div className={styles.location}>{event.location}</div>
@@ -244,33 +246,3 @@ function EventModal({ event, onClose }) {
   );
 }
 
-// Fixed locale/timezone (not the visitor's) so the statically prerendered
-// HTML always matches what the client renders on hydration, regardless of
-// the browser's locale or how long after build the page is opened.
-const DATE_LOCALE = "en-US";
-const DATE_TIME_ZONE = "America/Chicago";
-
-// Built from formatToParts rather than toLocaleString/toLocaleDateString:
-// those insert engine-chosen literal separators (e.g. some ICU builds use
-// a narrow no-break space before AM/PM, others a plain space), which can
-// differ between Node's bundled ICU and a browser's, breaking hydration
-// even with a fixed locale/timeZone. Assembling the string ourselves from
-// the individual parts keeps every byte engine-independent.
-function formatEventDate(start, allDay) {
-  const date = new Date(start);
-  const parts = new Intl.DateTimeFormat(DATE_LOCALE, {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: allDay ? undefined : "numeric",
-		minute: allDay ? undefined : "2-digit",
-		hour12: true,
-		timeZone: DATE_TIME_ZONE,
-	}).formatToParts(date);
-	const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
-
-	const datePart = `${get("month")} ${get("day")}, ${get("year")}`;
-	return allDay
-		? datePart
-		: `${datePart}, ${get("hour")}:${get("minute")} ${get("dayPeriod")}`;
-}

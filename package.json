@@ -19,6 +19,7 @@
     "baseline:check": "node scripts/visual-container.mjs check"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "gray-matter": "^4.0.3",
     "next": "^16.2.9",
     "node-ical": "^0.26.1",

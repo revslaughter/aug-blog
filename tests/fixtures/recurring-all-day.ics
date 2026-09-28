@@ -1,0 +1,18 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Antioch Urban Growers//Unit test fixtures//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:AUG unit test fixtures
+X-WR-TIMEZONE:America/Chicago
+BEGIN:VEVENT
+UID:fixture-recurring-all-day@aug.test
+DTSTAMP:20260201T120000Z
+DTSTART;VALUE=DATE:20260304
+DTEND;VALUE=DATE:20260305
+RRULE:FREQ=WEEKLY;BYDAY=WE
+SUMMARY:[PUBLIC] Seed Starting Week
+DESCRIPTION:A recurring all-day event. Every occurrence must keep its own calendar date\, whatever zone the build runs in.
+LOCATION:The Growers Lot
+END:VEVENT
+END:VCALENDAR
