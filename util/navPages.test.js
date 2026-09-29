@@ -160,7 +160,7 @@ describe("navLinks", () => {
     );
     expect(navLinks(pages)).toEqual([
       { title: "Home", href: "/" },
-      { title: "Blog", href: "/pages" },
+      { title: "Blog", href: "/posts" },
       { title: "Compost", href: "/compost" },
       { title: "About", href: "/about" },
     ]);
@@ -171,7 +171,7 @@ describe("navLinks", () => {
 		// not something `in_nav` can switch off.
 		expect(navLinks([])).toEqual([
 			{ title: "Home", href: "/" },
-			{ title: "Blog", href: "/pages" },
+			{ title: "Blog", href: "/posts" },
 		]);
 	});
 });

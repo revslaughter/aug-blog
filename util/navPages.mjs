@@ -182,7 +182,7 @@ export function getAllNavPages(fs, dir = navDir(), options) {
 export function navLinks(pages) {
   return [
 		{ title: "Home", href: "/" },
-		{ title: "Blog", href: "/pages" },
+		{ title: "Blog", href: "/posts" },
 		...pages
 			.filter((page) => page.inNav)
 			.map((page) => ({ title: page.navLabel, href: `/${page.slug}` })),
