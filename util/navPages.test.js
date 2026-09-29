@@ -148,7 +148,7 @@ describe("getAllNavPages", () => {
 });
 
 describe("navLinks", () => {
-  it("puts Home first and includes only pages marked in_nav", () => {
+  it("puts Home and Blog first, then includes only pages marked in_nav", () => {
     const pages = getAllNavPages(
       fakeFs({
         "about.md": md({ title: "About", order: 70, in_nav: true }),
@@ -160,16 +160,20 @@ describe("navLinks", () => {
     );
     expect(navLinks(pages)).toEqual([
       { title: "Home", href: "/" },
+      { title: "Blog", href: "/posts" },
       { title: "Compost", href: "/compost" },
       { title: "About", href: "/about" },
     ]);
   });
 
-  it("keeps Home even when nothing is in the nav", () => {
-    // A nav with no route back to the homepage is a broken site, so Home is
-    // not something `in_nav` can switch off.
-    expect(navLinks([])).toEqual([{ title: "Home", href: "/" }]);
-  });
+  it("keeps Home and Blog even when nothing is in the nav", () => {
+		// A nav with no route back to the homepage is a broken site, so Home is
+		// not something `in_nav` can switch off.
+		expect(navLinks([])).toEqual([
+			{ title: "Home", href: "/" },
+			{ title: "Blog", href: "/posts" },
+		]);
+	});
 });
 
 describe("assertRoutable", () => {
