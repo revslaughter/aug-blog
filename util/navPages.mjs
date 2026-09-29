@@ -168,9 +168,9 @@ export function getAllNavPages(fs, dir = navDir(), options) {
 }
 
 /**
- * The header links, Home first.
+ * The header links, Home first, then the blog.
  *
- * Home is prepended here rather than living in `_nav/` because it is not a
+ * Home and Blog are prepended here rather than living in `_nav/` because it is not a
  * section page — `pages/index.js` renders the logo, the event feed and the
  * store link, none of which comes from Markdown. It is also the one link that
  * must never be removable: a nav with no way back to the homepage is a broken
@@ -181,11 +181,12 @@ export function getAllNavPages(fs, dir = navDir(), options) {
  */
 export function navLinks(pages) {
   return [
-    { title: "Home", href: "/" },
-    ...pages
-      .filter((page) => page.inNav)
-      .map((page) => ({ title: page.navLabel, href: `/${page.slug}` })),
-  ];
+		{ title: "Home", href: "/" },
+		{ title: "Blog", href: "/pages" },
+		...pages
+			.filter((page) => page.inNav)
+			.map((page) => ({ title: page.navLabel, href: `/${page.slug}` })),
+	];
 }
 
 /**
