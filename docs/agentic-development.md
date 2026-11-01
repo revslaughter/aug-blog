@@ -97,10 +97,14 @@ carries risk past the code:
    (each command and its result), **Screenshots** (which baselines moved and
    why, or "No baseline moved."), and **Notes**.
 5. The body ends with one attribution footer.
-6. The orchestrator marks the PR ready after both reviews approve, and
+6. A WP issue with `needs-human` gives its PR the same label. The
+   orchestrator adds it when the draft PR opens. The merge gate reads the
+   labels of the PR and of the issue that it closes, so the label on the PR
+   is for people and reviewers, not for the gate.
+7. The orchestrator marks the PR ready after both reviews approve, and
    squash-merges it with `scripts/merge-gate.py --merge`. The script deletes
    the `feature/*` branch.
-7. Squash belongs to PRs into `alpha` alone. A promotion (`alpha` → `beta` →
+8. Squash belongs to PRs into `alpha` alone. A promotion (`alpha` → `beta` →
    `main`), `publish` → `main`, and a back-merge PR keep their commits: a
    merge commit, never a squash or a rebase (`CONTRIBUTING.md`, "Merge
    methods"). The developer merges those. The orchestrator never does.
@@ -180,10 +184,15 @@ commit, or closes and reopens a PR.
 
 ## 8. After a merge
 
-1. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready` on each
+1. Check the merge on the `alpha` log.
+2. Close the WP issue by hand. GitHub runs a closing keyword only on a merge
+   into the default branch (`main`), so a merge into `alpha` leaves the issue
+   open, and the WPs that it blocks stay blocked.
+3. Delete the `feature/*` branch. If the script cannot (a cloud session
+   proxy refuses the delete), the developer deletes it.
+4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready` on each
    WP that the merge unblocked.
-2. Check the merge on the `alpha` log.
-3. If the merge changed what an open WP assumes (a function name, a file, a
+5. If the merge changed what an open WP assumes (a function name, a file, a
    prop), comment on that WP issue with an `Orchestrator note`.
 
 ## 9. Implementer models
@@ -216,6 +225,9 @@ baselines (`docs/TESTING.md`).
    when Docker runs, and reports the result under **Checks run**. Without
    Docker, it writes "Screenshots: not run" and the developer meets any
    regression at the promotion.
+   In a cloud session the Docker client is installed but the daemon does
+   not run. The orchestrator starts `dockerd` before it starts agents, so
+   "not run" there means the start failed.
 2. A WP that does not mean to change the rendering must leave every baseline
    alone. A failing `baseline:check` on such a WP counts as a defect.
 3. A WP that means to change the rendering owns the baselines that move. It
