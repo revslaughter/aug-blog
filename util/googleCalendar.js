@@ -113,14 +113,152 @@ export async function getUpcomingEvents({
   const window = upcomingWindow(now, windowDays);
 
   const events = Object.values(calendar)
-    .filter((entry) => entry.type === "VEVENT" && isPublicSummary(entry.summary))
-    .flatMap((entry) => expandOccurrences(entry, window));
+    .filter((entry) => entry && entry.type === "VEVENT")
+    .flatMap((entry) => publishedOccurrences(entry, window));
 
   // Array.prototype.sort is stable, so events with equal keys keep the order
   // the calendar gave them.
   events.sort((a, b) => sortKey(a) - sortKey(b));
 
   return events.slice(0, limit);
+}
+
+/**
+ * One calendar entry's published occurrences. Each entry is normalized and
+ * expanded inside its own try/catch, `rrule.between` included, so one bad
+ * entry is warned about and dropped and the rest of the calendar still
+ * publishes. This keeps the "never throws" contract of
+ * {@link getUpcomingEvents} (#64).
+ *
+ * @param {object} entry a raw node-ical VEVENT
+ * @param {UpcomingWindow} window
+ * @returns {CalendarEvent[]}
+ */
+function publishedOccurrences(entry, window) {
+  try {
+    const normalized = normalizeEntry(entry);
+    if (!normalized || !isPublicSummary(normalized.summary)) return [];
+    return expandOccurrences(normalized, window);
+  } catch (err) {
+    console.warn(`[googleCalendar] dropping event ${entryUid(entry)}: ${err?.message ?? err}`);
+    return [];
+  }
+}
+
+/**
+ * A node-ical entry coerced into plain values. Every field has its declared
+ * type, so no code after {@link normalizeEntry} sees node-ical's object model.
+ *
+ * @typedef {{
+ *   uid: string,
+ *   summary: string|null,
+ *   location: string|null,
+ *   description: string|null,
+ *   url: string|null,
+ *   start: Date,
+ *   end: Date|null,
+ *   allDay: boolean,
+ *   rrule: {between: (after: Date, before: Date, inc: boolean) => Date[]}|null,
+ *   exdate: Record<string, Date|string>,
+ * }} NormalizedEntry
+ */
+
+/**
+ * The adapter at the node-ical boundary (#79). It is the only code in this
+ * module that reads `summary`, `location`, `description`, `url`, `start` and
+ * `end` from a node-ical entry.
+ *
+ * node-ical gives a property that has parameters (`SUMMARY;LANGUAGE=en-US:`,
+ * `DESCRIPTION;ALTREP=...`, `URL;VALUE=URI:`) as `{params, val}`, not as a
+ * string. Each text field becomes a plain string here, or null.
+ *
+ * An entry whose DTSTART or DTEND does not parse is dropped with a warning
+ * that names its UID. node-ical leaves such a value as the raw string (#64).
+ *
+ * @param {object} entry a raw node-ical VEVENT
+ * @returns {NormalizedEntry|null} null when the entry is dropped
+ */
+function normalizeEntry(entry) {
+  const uid = entryUid(entry);
+
+  const start = validDate(entry.start);
+  if (!start) {
+    console.warn(`[googleCalendar] dropping event ${uid}: unparseable DTSTART`);
+    return null;
+  }
+
+  let end = null;
+  if (entry.end !== undefined && entry.end !== null) {
+    end = validDate(entry.end);
+    if (!end) {
+      console.warn(`[googleCalendar] dropping event ${uid}: unparseable DTEND`);
+      return null;
+    }
+  }
+
+  return {
+    uid,
+    summary: plainText(entry.summary),
+    location: plainText(entry.location),
+    description: plainText(entry.description),
+    url: webUrl(plainText(entry.url)),
+    start,
+    end,
+    allDay: entry.datetype === "date",
+    rrule: typeof entry.rrule?.between === "function" ? entry.rrule : null,
+    exdate: entry.exdate && typeof entry.exdate === "object" ? entry.exdate : {},
+  };
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {string} the entry's UID, for ids and warnings
+ */
+function entryUid(entry) {
+  return typeof entry?.uid === "string" && entry.uid ? entry.uid : "(no UID)";
+}
+
+/**
+ * node-ical's text value as a plain string: a string as it is, `{params, val}`
+ * by its `val`. Anything else, and a blank string, is null.
+ *
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function plainText(value) {
+  if (value && typeof value === "object" && "val" in value) {
+    return plainText(value.val);
+  }
+  if (typeof value !== "string") return null;
+  return value.trim() === "" ? null : value;
+}
+
+/**
+ * A link a visitor can follow: an absolute `http` or `https` URL. Any other
+ * value is null, so no `javascript:` or relative link reaches the page.
+ *
+ * @param {string|null} value
+ * @returns {string|null}
+ */
+function webUrl(value) {
+  if (!value) return null;
+  let parsed;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return null;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:" ? value.trim() : null;
+}
+
+/**
+ * node-ical gives a parsed date as a Date. An unparseable one stays a string.
+ *
+ * @param {unknown} value
+ * @returns {Date|null} null unless `value` is a Date with a real time
+ */
+function validDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime()) ? value : null;
 }
 
 /**
@@ -290,24 +428,22 @@ const RRULE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
  * {@link isInWindow}, so `windowDays` means the same thing for a one-off in
  * September as it does for a weekly class (#31).
  *
- * @param {import("node-ical").VEvent} entry
+ * @param {NormalizedEntry} normalized
  * @param {UpcomingWindow} window
  * @returns {CalendarEvent[]}
  */
-function expandOccurrences(entry, window) {
-  if (!entry.rrule) {
-    if (!entry.start) return [];
-    const event = toCalendarEvent(entry, entry.start, entry.end);
+function expandOccurrences(normalized, window) {
+  if (!normalized.rrule) {
+    const event = toCalendarEvent(normalized, normalized.start, normalized.end);
     return isInWindow(event, window) ? [event] : [];
   }
 
-  const durationMs =
-    entry.start && entry.end ? new Date(entry.end) - new Date(entry.start) : 0;
+  const durationMs = normalized.end ? normalized.end.getTime() - normalized.start.getTime() : 0;
   const excludedDays = new Set(
-    Object.keys(entry.exdate || {}).map((key) => new Date(entry.exdate[key]).toDateString())
+    Object.keys(normalized.exdate || {}).map((key) => new Date(normalized.exdate[key]).toDateString())
   );
 
-  return entry.rrule
+  return normalized.rrule
     .between(
       new Date(window.now.getTime() - RRULE_MARGIN_MS),
       new Date(window.windowEnd.getTime() + RRULE_MARGIN_MS),
@@ -316,7 +452,7 @@ function expandOccurrences(entry, window) {
     .filter((occurrenceStart) => !excludedDays.has(occurrenceStart.toDateString()))
     .map((occurrenceStart) => {
       const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
-      return toCalendarEvent(entry, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
+      return toCalendarEvent(normalized, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
     })
     .filter((event) => isInWindow(event, window));
 }
@@ -348,26 +484,26 @@ function stripPublicPrefix(summary) {
 }
 
 /**
- * @param {import("node-ical").VEvent} entry
+ * @param {NormalizedEntry} normalized
  * @param {Date|string} start
  * @param {Date|string} end
  * @param {string} [idSuffix]
  * @returns {CalendarEvent}
  */
-function toCalendarEvent(entry, start, end, idSuffix = "") {
-  const allDay = entry.datetype === "date";
+function toCalendarEvent(normalized, start, end, idSuffix = "") {
+  const allDay = normalized.allDay;
   const startDate = allDay ? floatingCalendarDate(start) : null;
   return {
-    id: `${entry.uid}${idSuffix}`,
-    title: stripPublicPrefix(entry.summary),
+    id: `${normalized.uid}${idSuffix}`,
+    title: stripPublicPrefix(normalized.summary),
     start: new Date(start).toISOString(),
     end: end ? new Date(end).toISOString() : new Date(start).toISOString(),
     allDay,
     startDate,
     displayDate: formatDisplayDate({ start, allDay, startDate }),
-    location: entry.location || null,
-    description: entry.description || null,
-    url: entry.url || null,
+    location: normalized.location,
+    description: normalized.description,
+    url: normalized.url,
   };
 }
 
