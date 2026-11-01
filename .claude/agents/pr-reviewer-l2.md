@@ -78,9 +78,10 @@ Check these in order of risk. Spend most of your effort on 1, 2, and 5.
       left out of `tests/visual/routes.mjs`, no baseline made on the host.
 2. **The client's and the visitors' view.**
    1. A moved baseline matches the goal of the issue, and the PR body names
-      each one. A WP that moves baselines carries `needs-human`. If it does
-      not, that is a blocking finding: say that the orchestrator must add
-      the label.
+      each one. A WP that moves baselines carries `needs-human`, on the PR
+      or on the issue that the PR closes. The merge gate reads both. If
+      neither has it, that is a blocking finding: say that the orchestrator
+      must add the label. A label on the issue alone is a nit, not a block.
    2. A change to `public/admin/config.yml` keeps the fields that the client
       already uses, and keeps the content shape that the code reads.
    3. Accessibility: contrast, link text, alt text, heading order, keyboard

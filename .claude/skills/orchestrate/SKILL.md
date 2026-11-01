@@ -26,7 +26,12 @@ many WPs touch the same few files (`docs/agentic-development.md` section 11).
 4. If the local clone is shallow, run `git fetch --unshallow`. A shallow clone
    cannot find merge bases.
 5. Run `git fetch origin alpha`. WPs branch from `origin/alpha` and merge
-   into it. You never merge into `beta`, `main`, or `publish`.
+   into it. You never merge into `beta`, `main`, or `publish`. If `alpha`
+   does not exist, tell the developer and stop. The developer creates it.
+6. Run `docker info`. In a cloud session the Docker client is installed but
+   the daemon does not run. Start it with `dockerd` in the background, and
+   wait until `docker info` succeeds. The implementers and reviewers then
+   run `npm run baseline:check` (`docs/agentic-development.md` section 10).
 
 ## 1. Build the state
 
@@ -60,7 +65,10 @@ Repeat until no WP is open, or the developer says stop:
       `haiku`, `model:sonnet` gives `sonnet`, and `model:opus` gives `opus`.
       A WP with no `model:` label runs on sonnet.
 2. **Handle a finished implementer.**
-   1. If it returned a PR number (a draft PR): set `status:in-review`. Start
+   1. If it returned a PR number (a draft PR): set `status:in-review`. If the
+      WP issue has `needs-human`, add `needs-human` to the PR too, before
+      any review starts. If the implementer dispatched the "Refresh screenshot
+      baselines" workflow, wait until that run ends. Then start
       a new `pr-reviewer` agent in the background with
       `isolation: "worktree"` and the prompt `Review PR #<n>.` Send nothing
       else.
@@ -119,11 +127,18 @@ Repeat until no WP is open, or the developer says stop:
    a temporary worktree first and run `npm ci`, `npm run lint`,
    `npm run test:ci`, and `npm run build`. Then do every step in
    `docs/agentic-development.md` section 8:
-   1. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
-      on each WP that the merge unblocked.
-   2. Check the merge on the `alpha` log, not on the PR list's `merged`
+   1. Check the merge on the `alpha` log, not on the PR list's `merged`
       field.
-   3. Post an `Orchestrator note` on each open WP whose assumptions the
+   2. Close the WP issue with `state_reason: completed`, and comment one
+      line with the merge commit. A merge into `alpha` does not run the
+      `Closes #N` keyword, because `alpha` is not the default branch. Remove
+      its `status:*` label.
+   3. If `merge-gate.py --merge` could not delete the `feature/*` branch (a
+      cloud session proxy returns HTTP 403), note the branch. Tell the
+      developer the list of branches to delete when the queue is empty.
+   4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
+      on each WP that the merge unblocked.
+   5. Post an `Orchestrator note` on each open WP whose assumptions the
       merge changed.
 5. **Needs human.** When only human approval is missing, tell the developer
    once with the PR link. Do not ask again for the same PR. Say what the
