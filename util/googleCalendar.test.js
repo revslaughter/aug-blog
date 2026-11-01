@@ -630,3 +630,135 @@ describe("calendarOptionsFromEnv", () => {
     console.warn.mockRestore();
   });
 });
+
+// node-ical gives a property that has parameters as `{params, val}`, not as a
+// string. These parse real ICS text, so the shape under test is node-ical's
+// own and not a guess at it (#79, #64).
+describe("property parameters and malformed entries, parsed for real", () => {
+  const now = new Date("2026-05-04T14:00:00Z");
+
+  const PARAMETERIZED = [
+    "UID:params@aug.test",
+    "DTSTART:20260510T150000Z",
+    "DTEND:20260510T170000Z",
+    "SUMMARY;LANGUAGE=en-US:[PUBLIC] Seed Swap",
+    "LOCATION;LANGUAGE=en-US:Antioch Urban Growers",
+    'DESCRIPTION;ALTREP="cid:part1.0001@example":Bring seeds to share.',
+    "URL;VALUE=URI:https://example.org/seed-swap",
+  ];
+
+  const HEALTHY = [
+    "UID:healthy@aug.test",
+    "DTSTART:20260512T150000Z",
+    "DTEND:20260512T160000Z",
+    "SUMMARY:[PUBLIC] Healthy Event",
+  ];
+
+  function withWarnings() {
+    return jest.spyOn(console, "warn").mockImplementation(() => {});
+  }
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("publishes a parameterized SUMMARY with the plain title", async () => {
+    const events = await getUpcomingEvents({ now, loadCalendar: parsedCalendar(PARAMETERIZED) });
+    expect(titles(events)).toEqual(["Seed Swap"]);
+  });
+
+  it("gives plain strings for parameterized LOCATION, DESCRIPTION and URL", async () => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(PARAMETERIZED),
+    });
+    expect(event.location).toBe("Antioch Urban Growers");
+    expect(event.description).toBe("Bring seeds to share.");
+    expect(event.url).toBe("https://example.org/seed-swap");
+  });
+
+  it.each([
+    ["javascript:alert(1)"],
+    ["mailto:farm@example.org"],
+    ["/relative/path"],
+    ["not a url"],
+  ])("makes the URL %s null", async (url) => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar([...HEALTHY, `URL:${url}`]),
+    });
+    expect(event.url).toBeNull();
+  });
+
+  it("keeps an http URL", async () => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar([...HEALTHY, "URL:http://example.org/a"]),
+    });
+    expect(event.url).toBe("http://example.org/a");
+  });
+
+  it("gives null for absent optional fields", async () => {
+    const [event] = await getUpcomingEvents({ now, loadCalendar: parsedCalendar(HEALTHY) });
+    expect(event.location).toBeNull();
+    expect(event.description).toBeNull();
+    expect(event.url).toBeNull();
+  });
+
+  it("drops an entry with an unparseable DTSTART, names its UID, and keeps the rest", async () => {
+    const warn = withWarnings();
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(
+        ["UID:bad-start@aug.test", "DTSTART:garbage", "SUMMARY:[PUBLIC] Bad Start"],
+        HEALTHY
+      ),
+    });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[googleCalendar]"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("bad-start@aug.test"));
+  });
+
+  it("drops an entry with an unparseable DTEND, names its UID, and keeps the rest", async () => {
+    const warn = withWarnings();
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(
+        [
+          "UID:bad-end@aug.test",
+          "DTSTART:20260510T150000Z",
+          "DTEND:nope",
+          "SUMMARY:[PUBLIC] Bad End",
+        ],
+        HEALTHY
+      ),
+    });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("bad-end@aug.test"));
+  });
+
+  it("drops a series whose expansion throws, warns, and does not throw", async () => {
+    const warn = withWarnings();
+    const load = parsedCalendar(
+      [
+        "UID:series@aug.test",
+        "DTSTART:20260506T150000Z",
+        "DTEND:20260506T160000Z",
+        "RRULE:FREQ=WEEKLY;BYDAY=WE",
+        "SUMMARY:[PUBLIC] Weekly Class",
+      ],
+      HEALTHY
+    );
+    const loadCalendar = async () => {
+      const calendar = await load();
+      // A small fake for the one failure real ICS text cannot reliably cause.
+      calendar["series@aug.test"].rrule.between = () => {
+        throw new Error("rrule exploded");
+      };
+      return calendar;
+    };
+
+    const events = await getUpcomingEvents({ now, loadCalendar });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("series@aug.test"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("rrule exploded"));
+  });
+});
