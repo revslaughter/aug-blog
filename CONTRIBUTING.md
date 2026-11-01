@@ -64,15 +64,16 @@ and on pull requests targeting the first three:
 | --- | ------------ |
 | Lint | `npm run lint` |
 | Build | `npm run build` |
-| Test | `npm run test:ci`, with `TZ=Asia/Tokyo` |
+| Test | `npm run test:ci`, as a matrix with `TZ=Asia/Tokyo` and `TZ=America/Chicago` |
 | Screenshots | `npm run test:visual`, in the pinned Playwright container. Pull requests into `beta` and `main` only |
 | Security Audit | `npm audit --audit-level=high`, non-blocking |
 
-The Test job runs at Asia/Tokyo, not UTC. At UTC a local date and a UTC
-date are equal, so a test that guards against mixing them cannot fail there.
-A zone with a negative offset, such as America/Chicago, still gives the same
-date as UTC for the cases the guard covers. A zone with a positive offset,
-such as Asia/Tokyo, does not. The guard can fail only in such a zone.
+The Test job runs at two zones, Asia/Tokyo and America/Chicago, not UTC. At
+UTC a local date and a UTC date are equal, so a test that guards against
+mixing them cannot fail there. Asia/Tokyo (UTC+9) catches a date taken from
+the UTC instant in the recurring all-day code. America/Chicago (UTC-5 or
+UTC-6) catches bugs that show only at a negative offset. The two runs are
+independent, so a failure in one zone does not hide the other.
 The Netlify build and the screenshot tests stay at UTC.
 
 Lint gates Build, Test and Screenshots; the audit runs independently. The
