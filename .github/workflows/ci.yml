@@ -45,7 +45,7 @@ jobs:
     needs: lint
     # Not UTC, on purpose. At zero offset a local-time date and a UTC date are
     # the same, so a test that guards against mixing them cannot fail there.
-    # Chicago has a non-zero offset and also changes with daylight saving.
+    # Asia/Tokyo has a positive offset (UTC+9), so a local date and a UTC date differ there.
     env:
       TZ: Asia/Tokyo
     steps:
