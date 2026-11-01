@@ -48,6 +48,17 @@ npm run test:visual:report   # open the report — expected/actual/diff, side by
 The config rebuilds the site and serves `out/` over `scripts/serve-static.mjs`,
 which reproduces Netlify's clean URLs so the screenshots match what ships.
 
+### When CI runs them
+
+The Screenshots job runs only on pull requests into `beta` and `main`: the
+promotions. A pull request into `alpha` and a push to a feature branch skip it,
+which saves about three minutes of Actions time on each run.
+
+So a visual regression on a feature branch first shows up when `alpha` is
+promoted. Catch it earlier: when a change can move the rendering, run
+`npm run baseline:check` before you open the PR into `alpha`, and commit any
+intended baseline changes with the code.
+
 ## When a change is intentional
 
 A failing screenshot means "something moved", not "something broke". Look at the

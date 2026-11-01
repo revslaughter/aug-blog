@@ -56,6 +56,14 @@ jobs:
     name: Screenshots
     runs-on: ubuntu-latest
     needs: lint
+    # Only on pull requests into beta or main: the promotions. The job costs
+    # about three minutes in a container, and a PR into alpha or a feature push
+    # does not need it. Run `npm run baseline:check` locally before a PR into
+    # alpha when the change can move the rendering. Pushes to beta and main skip
+    # it too: the promotion PR already ran it on the same tree.
+    if: >-
+      github.event_name == 'pull_request' &&
+      (github.base_ref == 'beta' || github.base_ref == 'main')
     # Pixel comparison only means anything if the renderer is identical, so the
     # baselines are pinned to this image — same Chromium build, same FreeType,
     # same font config as `npm run test:visual:update` is expected to use.

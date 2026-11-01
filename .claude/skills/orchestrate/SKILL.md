@@ -109,9 +109,9 @@ Repeat until no WP is open, or the developer says stop:
       before you wait for the developer on a `needs-human` PR.
    6. Else run `scripts/merge-gate.py <n>`. Run it again when CI ends. If CI
       is red, start a fix round with the failing check and its first failing
-      line. A red Screenshots job on a WP that did not mean to change the
-      rendering is a defect, not a reason to rebaseline
-      (`docs/agentic-development.md` section 10).
+      line. The Screenshots job skips on PRs into `alpha`; the implementer's
+      `baseline:check` result stands in for it (`docs/agentic-development.md`
+      section 10).
 4. **Merge.** When the gate prints `merge-gate: PASS`, run
    `scripts/merge-gate.py <n> --merge`. It squash-merges into `alpha` with
    the full head SHA and deletes the `feature/*` branch. It refuses any other
@@ -134,7 +134,7 @@ Repeat until no WP is open, or the developer says stop:
 6. **Baseline refresh commits.** A commit that the "Refresh screenshot
    baselines" workflow pushed starts no CI run, so the gate reads "no check
    runs". Tell the developer once (`docs/agentic-development.md` section
-   10, rule 4). Never push an empty commit to start CI.
+   10, rule 5). Never push an empty commit to start CI.
 7. **Your own PRs.** Never merge a PR that you wrote (a docs PR, a CI fix).
    Do not review it yourself. Start a fresh L1 reviewer and a fresh L2
    reviewer on it, then give the developer the link.
@@ -142,7 +142,8 @@ Repeat until no WP is open, or the developer says stop:
    Agent completions and PR events wake you. Do not poll with `sleep`.
 
 When the queue is empty, tell the developer what landed on `alpha`. The
-promotion to `beta` and `main` is theirs.
+promotion to `beta` and `main` is theirs, with a merge commit, never a squash.
+The Screenshots job first runs on that promotion PR.
 
 ## 3. Layer-2 review checklist
 
