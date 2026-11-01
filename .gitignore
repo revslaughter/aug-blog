@@ -52,3 +52,6 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# python helper scripts
+__pycache__/
