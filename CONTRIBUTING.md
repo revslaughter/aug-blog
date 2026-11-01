@@ -64,9 +64,13 @@ and on pull requests targeting the first three:
 | --- | ------------ |
 | Lint | `npm run lint` |
 | Build | `npm run build` |
-| Test | `npm run test:ci` |
+| Test | `npm run test:ci`, with `TZ=America/Chicago` |
 | Screenshots | `npm run test:visual`, in the pinned Playwright container. Pull requests into `beta` and `main` only |
 | Security Audit | `npm audit --audit-level=high`, non-blocking |
+
+The Test job runs at America/Chicago, not UTC. At UTC a local date and a UTC
+date are equal, so a test that guards against mixing them cannot fail there.
+The Netlify build and the screenshot tests stay at UTC.
 
 Lint gates Build, Test and Screenshots; the audit runs independently. The
 screenshot job uses the same container image as `npm run baseline`, which is
