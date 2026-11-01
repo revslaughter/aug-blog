@@ -272,8 +272,8 @@ describe("all-day events, parsed for real", () => {
     expect((await faire()).displayDate).not.toMatch(/CDT|CST|UTC|GMT/);
   });
 
-  // The instant is deliberately left alone — sorting and windowing still use
-  // it, and it is only the *date* that an instant cannot express.
+  // The instant is still exposed for consumers that want one. Sorting and
+  // windowing of all-day events use `startDate` instead (#78, #70, #76).
   it("still exposes an ISO instant on `start`", async () => {
     expect((await faire()).start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
@@ -351,6 +351,374 @@ describe("recurring all-day events, parsed for real", () => {
   });
 });
 
+/**
+ * A calendar parsed by the real node-ical from inline iCalendar text. A
+ * `VALUE=DATE` entry then lands at local midnight in the zone this process
+ * runs in, exactly as in a real build. A hand-written `start` could not do
+ * that.
+ */
+function parsedCalendar(...vevents) {
+  const realIcal = jest.requireActual("node-ical");
+  const text = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//AUG//unit test//EN",
+    ...vevents.flatMap((lines) => ["BEGIN:VEVENT", "DTSTAMP:20260101T000000Z", ...lines, "END:VEVENT"]),
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const calendar = realIcal.sync.parseICS(text);
+  return () => Promise.resolve(calendar);
+}
+
+const SUMMER_FAIRE = [
+  "UID:faire@aug.test",
+  "DTSTART;VALUE=DATE:20260523",
+  "DTEND;VALUE=DATE:20260524",
+  "SUMMARY:[PUBLIC] Summer Faire",
+];
+
+// 20:00 CDT on 22 May 2026 is 01:00 UTC on the 23rd.
+const EVENING_BEFORE = [
+  "UID:evening@aug.test",
+  "DTSTART:20260523T010000Z",
+  "DTEND:20260523T030000Z",
+  "SUMMARY:[PUBLIC] Evening Before",
+];
+
+const WEEKLY_ALL_DAY = [
+  "UID:weekly@aug.test",
+  "DTSTART;VALUE=DATE:20260506",
+  "DTEND;VALUE=DATE:20260507",
+  "RRULE:FREQ=WEEKLY;BYDAY=WE",
+  "SUMMARY:[PUBLIC] Market Wednesday",
+];
+
+const titles = (events) => events.map((event) => event.title);
+
+/**
+ * Every test in this block must hold in any build zone. The matrix below
+ * runs this block again under each zone the WP names (#78, #70, #76).
+ */
+const BUILD_ZONE_SUITE = "all-day events are independent of the build zone";
+
+describe(BUILD_ZONE_SUITE, () => {
+  describe("near edge: published for the whole of its own date (#78)", () => {
+    // 00:30, 13:00 (the daily refresh) and 23:30 CDT on 23 May 2026.
+    it.each([
+      ["00:30", "2026-05-23T05:30:00Z"],
+      ["13:00", "2026-05-23T18:00:00Z"],
+      ["23:30", "2026-05-24T04:30:00Z"],
+    ])("at %s Chicago time on the day", async (_label, iso) => {
+      const events = await getUpcomingEvents({
+        now: new Date(iso),
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Summer Faire"]);
+    });
+
+    it("is dropped once its date has passed in Chicago", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-24T05:30:00Z"), // 00:30 CDT on the 24th
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe("far edge: in when its date is on or before windowEnd's date (#76)", () => {
+    it("keeps an all-day event on windowEnd's date, before its midnight instant", async () => {
+      // windowEnd is 23 May 00:30 CDT. Its date is the 23rd.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-22T05:30:00Z"),
+        windowDays: 1,
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Summer Faire"]);
+    });
+
+    it("excludes an all-day event the day after windowEnd's date", async () => {
+      // windowEnd is 22 May 20:00 CDT. Its date is the 22nd. Under
+      // TZ=Asia/Tokyo the Faire's instant (22 May 15:00 UTC) is before
+      // windowEnd, so only a date comparison excludes it.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-22T01:00:00Z"),
+        windowDays: 1,
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe("ordering (#70)", () => {
+    it("sorts an all-day event on the 23rd after a timed event at 20:00 CDT on the 22nd", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-20T18:00:00Z"),
+        loadCalendar: parsedCalendar(SUMMER_FAIRE, EVENING_BEFORE),
+      });
+      expect(titles(events)).toEqual(["Evening Before", "Summer Faire"]);
+    });
+
+    it("gives the same order whatever order the calendar lists them in", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-20T18:00:00Z"),
+        loadCalendar: parsedCalendar(EVENING_BEFORE, SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Evening Before", "Summer Faire"]);
+    });
+  });
+
+  describe("recurring all-day occurrences follow the same rules", () => {
+    it.each([
+      ["00:30", "2026-05-13T05:30:00Z"],
+      ["13:00", "2026-05-13T18:00:00Z"],
+      ["23:30", "2026-05-14T04:30:00Z"],
+    ])("keeps the occurrence dated today at %s Chicago time", async (_label, iso) => {
+      const events = await getUpcomingEvents({
+        now: new Date(iso),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY),
+      });
+      // 13 May is today. 20 May is on windowEnd's date and is in too.
+      expect(events.map((event) => event.startDate)).toEqual(["2026-05-13", "2026-05-20"]);
+    });
+
+    it("drops an occurrence past windowEnd's date and one before today", async () => {
+      // now 14 May 13:00 CDT, windowEnd 19 May 13:00 CDT.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-14T18:00:00Z"),
+        windowDays: 5,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("sorts an occurrence after a timed event on the evening before", async () => {
+      const evening = [
+        "UID:evening-weekly@aug.test",
+        "DTSTART:20260520T010000Z", // 20:00 CDT on 19 May
+        "DTEND:20260520T030000Z",
+        "SUMMARY:[PUBLIC] Evening Before Market",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-18T18:00:00Z"),
+        windowDays: 3,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY, evening),
+      });
+      expect(titles(events)).toEqual(["Evening Before Market", "Market Wednesday"]);
+    });
+  });
+
+  // A weekly class, Wednesdays 12:00-13:00 Chicago time (17:00 UTC in May).
+  describe("RECURRENCE-ID overrides and EXDATE (#80)", () => {
+    const SERIES = [
+      "UID:movement@aug.test",
+      "DTSTART;TZID=America/Chicago:20260506T120000",
+      "DTEND;TZID=America/Chicago:20260506T130000",
+      "RRULE:FREQ=WEEKLY;BYDAY=WE",
+      "SUMMARY:[PUBLIC] Mindful Movement",
+      "LOCATION:Back Field",
+      "DESCRIPTION:Bring a mat.",
+    ];
+    // "This event only": 13 May moved to Friday 15 May 09:00, renamed, relocated.
+    const MOVED_13_MAY = [
+      "UID:movement@aug.test",
+      "RECURRENCE-ID;TZID=America/Chicago:20260513T120000",
+      "DTSTART;TZID=America/Chicago:20260515T090000",
+      "DTEND;TZID=America/Chicago:20260515T103000",
+      "SUMMARY:[PUBLIC] Mindful Movement (moved)",
+      "LOCATION:Barn",
+      "DESCRIPTION:Rain plan.",
+    ];
+    const card = (event) => `${event.displayDate} | ${event.title} | ${event.location}`;
+
+    it("replaces the original occurrence with the override", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, MOVED_13_MAY),
+      });
+      expect(events.map(card)).toEqual([
+        "May 15, 2026, 9:00\u00A0AM\u00A0CDT | Mindful Movement (moved) | Barn",
+      ]);
+      expect(events[0]).toMatchObject({
+        start: "2026-05-15T14:00:00.000Z",
+        end: "2026-05-15T15:30:00.000Z",
+        description: "Rain plan.",
+        allDay: false,
+      });
+    });
+
+    it("keeps the other occurrences of the series", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-04T12:00:00Z"),
+        windowDays: 21,
+        loadCalendar: parsedCalendar(SERIES, MOVED_13_MAY),
+      });
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-06T17:00:00.000Z",
+        "2026-05-15T14:00:00.000Z",
+        "2026-05-20T17:00:00.000Z",
+      ]);
+      expect(new Set(events.map((event) => event.id)).size).toBe(3);
+    });
+
+    it("drops an occurrence moved out of the window", async () => {
+      const movedOut = [
+        "UID:movement@aug.test",
+        "RECURRENCE-ID;TZID=America/Chicago:20260513T120000",
+        "DTSTART;TZID=America/Chicago:20260610T120000",
+        "DTEND;TZID=America/Chicago:20260610T130000",
+        "SUMMARY:[PUBLIC] Mindful Movement",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, movedOut),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("publishes an occurrence moved into the window from a slot outside it", async () => {
+      // The 3 June slot is past windowEnd (18 May). Its override lands on 14 May.
+      const movedIn = [
+        "UID:movement@aug.test",
+        "RECURRENCE-ID;TZID=America/Chicago:20260603T120000",
+        "DTSTART;TZID=America/Chicago:20260514T180000",
+        "DTEND;TZID=America/Chicago:20260514T190000",
+        "SUMMARY:[PUBLIC] Mindful Movement (early)",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, movedIn),
+      });
+      expect(titles(events)).toEqual(["Mindful Movement", "Mindful Movement (early)"]);
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-13T17:00:00.000Z",
+        "2026-05-14T23:00:00.000Z",
+      ]);
+    });
+
+    it("drops an override whose title no longer starts with [PUBLIC]", async () => {
+      const madePrivate = [...MOVED_13_MAY.filter((line) => !line.startsWith("SUMMARY")), "SUMMARY:Mindful Movement"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, madePrivate),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("EXDATE on a timed series removes only the instant it names", async () => {
+      const twiceDaily = [
+        "UID:watering@aug.test",
+        "DTSTART:20260512T130000Z",
+        "DTEND:20260512T140000Z",
+        "RRULE:FREQ=HOURLY;INTERVAL=10;COUNT=4",
+        "EXDATE:20260512T230000Z",
+        "SUMMARY:[PUBLIC] Watering",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-12T00:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(twiceDaily),
+      });
+      // 13:00 and 23:00 UTC share a local date in most build zones. Matching
+      // by date would drop both; matching by instant drops 23:00 only.
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-12T13:00:00.000Z",
+        "2026-05-13T09:00:00.000Z",
+        "2026-05-13T19:00:00.000Z",
+      ]);
+    });
+
+    it("EXDATE and an override on the same series each act on their own slot", async () => {
+      const series = [...SERIES, "EXDATE;TZID=America/Chicago:20260520T120000"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(series, MOVED_13_MAY),
+      });
+      expect(events.map((event) => event.start)).toEqual(["2026-05-15T14:00:00.000Z"]);
+    });
+
+    it("EXDATE on an all-day series removes the calendar date it names", async () => {
+      const series = [...WEEKLY_ALL_DAY, "EXDATE;VALUE=DATE:20260513"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T18:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(series),
+      });
+      expect(events.map((event) => event.startDate)).toEqual(["2026-05-20"]);
+    });
+
+    it("an override on an all-day series moves that date only", async () => {
+      const moved = [
+        "UID:weekly@aug.test",
+        "RECURRENCE-ID;VALUE=DATE:20260520",
+        "DTSTART;VALUE=DATE:20260521",
+        "DTEND;VALUE=DATE:20260522",
+        "SUMMARY:[PUBLIC] Market Thursday",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T18:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY, moved),
+      });
+      expect(events.map((event) => `${event.startDate} ${event.title}`)).toEqual([
+        "2026-05-13 Market Wednesday",
+        "2026-05-21 Market Thursday",
+      ]);
+    });
+  });
+});
+
+// Jest cannot change the process zone after start-up, so the matrix runs the
+// block above in a child Jest per zone. The child sets the guard variable, so
+// it does not start a matrix of its own.
+const MATRIX_GUARD = "AUG_BUILD_ZONE_MATRIX_CHILD";
+const BUILD_ZONES = [
+  "UTC",
+  "America/Chicago",
+  "Asia/Tokyo",
+  "Pacific/Kiritimati",
+  "Pacific/Honolulu",
+];
+
+if (!process.env[MATRIX_GUARD]) {
+  describe("build zone matrix", () => {
+    const { spawnSync } = jest.requireActual("child_process");
+    const path = jest.requireActual("path");
+
+    it.each(BUILD_ZONES)("passes under TZ=%s", (zone) => {
+      const jestBin = path.join(process.cwd(), "node_modules", "jest", "bin", "jest.js");
+      const child = spawnSync(
+        process.execPath,
+        [
+          jestBin,
+          "--ci",
+          "--runTestsByPath",
+          path.join(process.cwd(), "util", "googleCalendar.test.js"),
+          "--testNamePattern",
+          BUILD_ZONE_SUITE,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, TZ: zone, [MATRIX_GUARD]: "1" },
+          encoding: "utf8",
+        }
+      );
+      const report = `${child.stdout}${child.stderr}`;
+      // The child's report is part of the received value, so a failure in
+      // the child prints here.
+      expect(`exit ${child.status}\n${report}`).toMatch(/^exit 0\n/);
+      // A name pattern that matched nothing would also exit 0. Require the
+      // child to have run the block's tests, and failed none.
+      expect(report).toMatch(/Tests:\s+\d+ skipped, 2[0-9] passed/);
+    }, 60000);
+  });
+}
+
 describe("calendar sources", () => {
   beforeEach(() => {
     ical.async.fromURL.mockReset();
@@ -424,5 +792,137 @@ describe("calendarOptionsFromEnv", () => {
     const { now } = calendarOptionsFromEnv({ CALENDAR_NOW: "not a date" });
     expect(now.getTime()).toBeGreaterThanOrEqual(before);
     console.warn.mockRestore();
+  });
+});
+
+// node-ical gives a property that has parameters as `{params, val}`, not as a
+// string. These parse real ICS text, so the shape under test is node-ical's
+// own and not a guess at it (#79, #64).
+describe("property parameters and malformed entries, parsed for real", () => {
+  const now = new Date("2026-05-04T14:00:00Z");
+
+  const PARAMETERIZED = [
+    "UID:params@aug.test",
+    "DTSTART:20260510T150000Z",
+    "DTEND:20260510T170000Z",
+    "SUMMARY;LANGUAGE=en-US:[PUBLIC] Seed Swap",
+    "LOCATION;LANGUAGE=en-US:Antioch Urban Growers",
+    'DESCRIPTION;ALTREP="cid:part1.0001@example":Bring seeds to share.',
+    "URL;VALUE=URI:https://example.org/seed-swap",
+  ];
+
+  const HEALTHY = [
+    "UID:healthy@aug.test",
+    "DTSTART:20260512T150000Z",
+    "DTEND:20260512T160000Z",
+    "SUMMARY:[PUBLIC] Healthy Event",
+  ];
+
+  function withWarnings() {
+    return jest.spyOn(console, "warn").mockImplementation(() => {});
+  }
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("publishes a parameterized SUMMARY with the plain title", async () => {
+    const events = await getUpcomingEvents({ now, loadCalendar: parsedCalendar(PARAMETERIZED) });
+    expect(titles(events)).toEqual(["Seed Swap"]);
+  });
+
+  it("gives plain strings for parameterized LOCATION, DESCRIPTION and URL", async () => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(PARAMETERIZED),
+    });
+    expect(event.location).toBe("Antioch Urban Growers");
+    expect(event.description).toBe("Bring seeds to share.");
+    expect(event.url).toBe("https://example.org/seed-swap");
+  });
+
+  it.each([
+    ["javascript:alert(1)"],
+    ["mailto:farm@example.org"],
+    ["/relative/path"],
+    ["not a url"],
+  ])("makes the URL %s null", async (url) => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar([...HEALTHY, `URL:${url}`]),
+    });
+    expect(event.url).toBeNull();
+  });
+
+  it("keeps an http URL", async () => {
+    const [event] = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar([...HEALTHY, "URL:http://example.org/a"]),
+    });
+    expect(event.url).toBe("http://example.org/a");
+  });
+
+  it("gives null for absent optional fields", async () => {
+    const [event] = await getUpcomingEvents({ now, loadCalendar: parsedCalendar(HEALTHY) });
+    expect(event.location).toBeNull();
+    expect(event.description).toBeNull();
+    expect(event.url).toBeNull();
+  });
+
+  it("drops an entry with an unparseable DTSTART, names its UID, and keeps the rest", async () => {
+    const warn = withWarnings();
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(
+        ["UID:bad-start@aug.test", "DTSTART:garbage", "SUMMARY:[PUBLIC] Bad Start"],
+        HEALTHY
+      ),
+    });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[googleCalendar]"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("bad-start@aug.test"));
+  });
+
+  it("drops an entry with an unparseable DTEND, names its UID, and keeps the rest", async () => {
+    const warn = withWarnings();
+    const events = await getUpcomingEvents({
+      now,
+      loadCalendar: parsedCalendar(
+        [
+          "UID:bad-end@aug.test",
+          "DTSTART:20260510T150000Z",
+          "DTEND:nope",
+          "SUMMARY:[PUBLIC] Bad End",
+        ],
+        HEALTHY
+      ),
+    });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("bad-end@aug.test"));
+  });
+
+  it("drops a series whose expansion throws, warns, and does not throw", async () => {
+    const warn = withWarnings();
+    const load = parsedCalendar(
+      [
+        "UID:series@aug.test",
+        "DTSTART:20260506T150000Z",
+        "DTEND:20260506T160000Z",
+        "RRULE:FREQ=WEEKLY;BYDAY=WE",
+        "SUMMARY:[PUBLIC] Weekly Class",
+      ],
+      HEALTHY
+    );
+    const loadCalendar = async () => {
+      const calendar = await load();
+      // A small fake for the one failure real ICS text cannot reliably cause.
+      calendar["series@aug.test"].rrule.between = () => {
+        throw new Error("rrule exploded");
+      };
+      return calendar;
+    };
+
+    const events = await getUpcomingEvents({ now, loadCalendar });
+    expect(titles(events)).toEqual(["Healthy Event"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("series@aug.test"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("rrule exploded"));
   });
 });

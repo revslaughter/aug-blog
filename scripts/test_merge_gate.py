@@ -30,9 +30,34 @@ PR = {"head": {"sha": HEAD}, "base": {"ref": "alpha"}, "mergeable": True,
       "mergeable_state": "clean"}
 
 
+class Fake:
+    """A fake for merge-gate's `run`. It records each command and fails the
+    commands that `fail` names (a substring of the joined argv, or of
+    TZ=<zone> plus the argv). It runs nothing."""
+
+    def __init__(self, fail=None):
+        self.fail = fail or {}
+        self.calls = []
+
+    def __call__(self, argv, cwd=None, env=None):
+        text = " ".join(argv)
+        if env and env.get("TZ"):
+            text = "TZ=" + env["TZ"] + " " + text
+        self.calls.append(text)
+        for key, code in self.fail.items():
+            if key in text:
+                return code, "boom line 1\nthe last line"
+        return 0, ""
+
+    def count(self, key):
+        return sum(1 for c in self.calls if key in c)
+
+
 def gates(**kw):
+    kw.setdefault("run", Fake())
     args = dict(pr=PR, files=["util/googleCalendar.js"], comments=[L1_OK, L2_OK],
-                ci=("green", "ok"), labels=set(), approved=[], pushed_at=PUSH)
+                ci=("none", "no check runs on the head commit"), labels=set(),
+                approved=[], pushed_at=PUSH)
     args.update(kw)
     return {g: (ok, why) for g, ok, why in mg.evaluate(**args)}
 
@@ -104,16 +129,60 @@ class Gates(unittest.TestCase):
             self.assertFalse(gates(pr=dict(PR, base={"ref": base}))["0 base"][0], base)
         self.assertNotIn("0 base", gates())
 
-    def test_skipped_ci_fails_for_code(self):
-        self.assertFalse(gates(ci=("none", "no CI job ran"))["1 CI"][0])
+    def test_local_pass(self):
+        fake = Fake()
+        ok, why = gates(run=fake)["1 checks"]
+        self.assertTrue(ok, why)
+        for cmd in ("npm ci", "npm run lint", "TZ=Asia/Tokyo npm run test:ci",
+                    "TZ=America/Chicago npm run test:ci", "npm run build"):
+            self.assertEqual(fake.count(cmd), 1, cmd)
+        self.assertEqual(fake.count("worktree remove"), 1)
 
-    def test_red_ci_fails(self):
-        self.assertFalse(gates(ci=("red", "failed: test"))["1 CI"][0])
+    def test_local_failing_command_is_named(self):
+        fake = Fake(fail={"TZ=America/Chicago npm run test:ci": 1})
+        ok, why = gates(run=fake)["1 checks"]
+        self.assertFalse(ok)
+        self.assertIn("TZ=America/Chicago npm run test:ci", why)
+        self.assertIn("the last line", why)
+        self.assertEqual(fake.count("npm run build"), 0)
+        self.assertEqual(fake.count("worktree remove"), 1)
+
+    def test_merge_conflict_fails_and_cleans_up(self):
+        fake = Fake(fail={"merge --no-edit": 1})
+        ok, why = gates(run=fake)["1 checks"]
+        self.assertFalse(ok)
+        self.assertIn("merge conflict", why)
+        self.assertEqual(fake.count("npm"), 0)
+        self.assertEqual(fake.count("merge --abort"), 1)
+        self.assertEqual(fake.count("worktree remove"), 1)
+
+    def test_worktree_removed_when_a_command_raises(self):
+        fake = Fake()
+        real = fake.__call__
+
+        def boom(argv, cwd=None, env=None):
+            if argv[:2] == ["npm", "ci"]:
+                raise RuntimeError("x")
+            return real(argv, cwd, env)
+        with self.assertRaises(RuntimeError):
+            mg.gate_local(HEAD, 1, boom)
+        self.assertEqual(fake.count("worktree remove"), 1)
+
+    def test_red_check_run_fails_without_local_run(self):
+        fake = Fake()
+        ok, why = gates(ci=("red", "failed: Test (failure)"), run=fake)["1 checks"]
+        self.assertFalse(ok)
+        self.assertIn("Test (failure)", why)
+        self.assertEqual(fake.calls, [])
+
+    def test_gate_does_not_read_green_ci_as_a_pass(self):
+        fake = Fake(fail={"npm run lint": 1})
+        self.assertFalse(gates(ci=("green", "ok"), run=fake)["1 checks"][0])
 
     def test_docs_only_needs_no_ci(self):
         g = gates(files=["docs/a.md", "README.md", ".claude/skills/x/SKILL.md"],
-                  ci=("none", ""))
-        self.assertTrue(g["1 CI"][0])
+                  ci=("none", ""), run=Fake(fail={"": 1}))
+        self.assertTrue(g["1 checks"][0])
 
     def test_content_markdown_is_not_docs_only(self):
         for f in ("_nav/about.md", "_posts/hello.md", "_recipes/soup.md"):
@@ -121,7 +190,7 @@ class Gates(unittest.TestCase):
         self.assertFalse(mg.is_docs_only(["util/x.js", "README.md"]))
 
     def test_out_of_minutes_fails(self):
-        ok, why = gates(ci=("out-of-minutes", ""))["1 CI"]
+        ok, why = gates(ci=("out-of-minutes", ""), run=Fake())["1 checks"]
         self.assertFalse(ok)
         self.assertIn("developer", why)
 
