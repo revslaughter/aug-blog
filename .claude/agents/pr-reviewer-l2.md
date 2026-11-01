@@ -37,7 +37,7 @@ Then read the PR:
 5. For cross-WP checks only: the list of open PRs (number, title, changed
    file names). Read the diff of an open PR only when it changes a file that
    this PR changes or calls.
-6. The CI check runs on the PR head. When the Screenshots job failed, or
+6. The CI check runs on the PR head. When the Screenshots job ran and failed, or
    baselines moved, read the `visual-diff` artifact list or the changed PNG
    names.
 

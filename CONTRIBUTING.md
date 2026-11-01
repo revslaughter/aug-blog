@@ -39,6 +39,22 @@ Those five branches are the whole set. Feature and `claude/*` branches are
 deleted once merged — a long list of stale branches makes it impossible to tell
 at a glance what is actually in flight.
 
+### Merge methods
+
+| Pull request | Method |
+| ------------ | ------ |
+| `feature/*` or `claude/*` → `alpha` | **Squash** |
+| `alpha` → `beta`, `beta` → `main` | **Merge commit** (or rebase) |
+| `publish` → `main` | **Merge commit** (or rebase) |
+| Back-merge PRs (`sync/main-to-*`) | **Merge commit** |
+
+Squash belongs to `alpha` alone. Every other merge keeps the commits.
+
+Prefer a merge commit for the promotions. A rebase merge on GitHub rewrites
+each commit with a new SHA, the same as a squash does. The branches then share
+no ancestry for those commits, and `back-merge.yml` meets conflicts. The
+comment at the top of that workflow gives the details.
+
 ## CI
 
 GitHub Actions runs on every push to `main`, `alpha`, `beta` and `feature/**`,
@@ -49,7 +65,7 @@ and on pull requests targeting the first three:
 | Lint | `npm run lint` |
 | Build | `npm run build` |
 | Test | `npm run test:ci` |
-| Screenshots | `npm run test:visual`, in the pinned Playwright container |
+| Screenshots | `npm run test:visual`, in the pinned Playwright container. Pull requests into `beta` and `main` only |
 | Security Audit | `npm audit --audit-level=high`, non-blocking |
 
 Lint gates Build, Test and Screenshots; the audit runs independently. The

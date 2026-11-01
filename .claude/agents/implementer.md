@@ -33,8 +33,11 @@ Your prompt gives a WP ID and an issue number, for example
    2. `npm run test:ci`
    3. `npm run build`
    4. When the change can move the rendering, and Docker runs here:
-      `npm run baseline:check`. Never run `npm run test:visual:update` on the
-      host (`docs/agentic-development.md` section 10).
+      `npm run baseline:check`. CI does not run the screenshots on a PR into
+      `alpha`, so this run is the only check before the promotion. Without
+      Docker, write "Screenshots: not run" under **Checks run**. Never run
+      `npm run test:visual:update` on the host
+      (`docs/agentic-development.md` section 10).
 7. Commit with the message `[WP-NN] <summary>`. Push the branch.
 8. If the WP means to change the rendering, refresh the baselines: run
    `npm run baseline` when Docker runs, check that only the pages you meant to

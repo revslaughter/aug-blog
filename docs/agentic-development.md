@@ -100,8 +100,10 @@ carries risk past the code:
 6. The orchestrator marks the PR ready after both reviews approve, and
    squash-merges it with `scripts/merge-gate.py --merge`. The script deletes
    the `feature/*` branch.
-7. Nobody squashes a promotion (`alpha` → `beta` → `main`) or a back-merge
-   PR. Those keep the ancestry that `back-merge.yml` needs.
+7. Squash belongs to PRs into `alpha` alone. A promotion (`alpha` → `beta` →
+   `main`), `publish` → `main`, and a back-merge PR keep their commits: a merge
+   commit, or a rebase (`CONTRIBUTING.md`, "Merge methods"). The developer
+   merges those. The orchestrator never does.
 
 ## 5. Reviews
 
@@ -161,7 +163,8 @@ fails on it.
 `scripts/merge-gate.py <n>` checks the gates on the PR head:
 
 0. The PR is open, ready (not a draft), and targets `alpha`.
-1. CI is green. The Security Audit job does not count (CONTRIBUTING.md, "CI"). A PR
+1. CI is green. The Security Audit job does not count (CONTRIBUTING.md, "CI").
+   The Screenshots job skips on PRs into `alpha` (section 10). A PR
    that changes only Markdown outside `_nav/`, `_posts/`, `_recipes/`, and
    `public/` needs no CI.
 2. The latest L1 verdict approves, and it is not stale.
@@ -208,18 +211,23 @@ sonnet.
 The screenshot job compares every page at four viewports against committed
 baselines (`docs/TESTING.md`).
 
-1. A WP that does not mean to change the rendering must leave every baseline
-   alone. A red Screenshots job on such a PR counts as a defect.
-2. A WP that means to change the rendering owns the baselines that move. It
+1. CI runs the Screenshots job only on PRs into `beta` and `main`. A WP PR
+   into `alpha` does not run it. The implementer runs `npm run baseline:check`
+   when Docker runs, and reports the result under **Checks run**. Without
+   Docker, it writes "Screenshots: not run" and the developer meets any
+   regression at the promotion.
+2. A WP that does not mean to change the rendering must leave every baseline
+   alone. A failing `baseline:check` on such a WP counts as a defect.
+3. A WP that means to change the rendering owns the baselines that move. It
    carries `needs-human`, because the client sees the change.
-3. Never regenerate baselines on the host. Use `npm run baseline` (Docker)
+4. Never regenerate baselines on the host. Use `npm run baseline` (Docker)
    when Docker runs, or else dispatch the **Refresh screenshot baselines**
    workflow on the PR branch with a reason.
-4. A commit pushed by that workflow starts no CI run (it pushes with
+5. A commit pushed by that workflow starts no CI run (it pushes with
    `GITHUB_TOKEN`). The merge gate then reads "no check runs" on that head.
    The orchestrator tells the developer, who reviews the moved baselines and
    pushes the next real commit or merges by hand.
-5. The PR body lists each moved baseline and why it moved.
+6. The PR body lists each moved baseline and why it moved.
 
 ## 11. Parallel work and conflicts
 
