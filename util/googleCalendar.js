@@ -137,7 +137,7 @@ export async function getUpcomingEvents({
 function publishedOccurrences(entry, window) {
   try {
     const normalized = normalizeEntry(entry);
-    if (!normalized || !isPublicSummary(normalized.summary)) return [];
+    if (!normalized) return [];
     return expandOccurrences(normalized, window);
   } catch (err) {
     console.warn(`[googleCalendar] dropping event ${entryUid(entry)}: ${err?.message ?? err}`);
@@ -159,8 +159,17 @@ function publishedOccurrences(entry, window) {
  *   end: Date|null,
  *   allDay: boolean,
  *   rrule: {between: (after: Date, before: Date, inc: boolean) => Date[]}|null,
- *   exdate: Record<string, Date|string>,
+ *   exdate: Date[],
+ *   overrides: NormalizedOverride[],
  * }} NormalizedEntry
+ */
+
+/**
+ * One RECURRENCE-ID override: an occurrence of a series that the client edited
+ * on its own ("this event only" in Google Calendar). `recurrenceId` is the
+ * original slot it replaces; `entry` is the occurrence as it now stands.
+ *
+ * @typedef {{recurrenceId: Date, entry: NormalizedEntry}} NormalizedOverride
  */
 
 /**
@@ -206,8 +215,38 @@ function normalizeEntry(entry) {
     end,
     allDay: entry.datetype === "date",
     rrule: typeof entry.rrule?.between === "function" ? entry.rrule : null,
-    exdate: entry.exdate && typeof entry.exdate === "object" ? entry.exdate : {},
+    exdate: uniqueValues(entry.exdate).map(validDate).filter(Boolean),
+    overrides: uniqueValues(entry.recurrences).flatMap((override) => normalizeOverride(override, uid)),
   };
+}
+
+/**
+ * node-ical keys each EXDATE and each RECURRENCE-ID override twice, by a date
+ * string and by an ISO string, with the same value under both keys. This
+ * gives each value once.
+ *
+ * @param {unknown} map
+ * @returns {unknown[]}
+ */
+function uniqueValues(map) {
+  if (!map || typeof map !== "object") return [];
+  return [...new Set(Object.values(map))];
+}
+
+/**
+ * @param {object} override a raw node-ical VEVENT that has a RECURRENCE-ID
+ * @param {string} seriesUid
+ * @returns {NormalizedOverride[]} empty when the override is dropped
+ */
+function normalizeOverride(override, seriesUid) {
+  if (!override || typeof override !== "object") return [];
+  const recurrenceId = validDate(override.recurrenceid);
+  if (!recurrenceId) {
+    console.warn(`[googleCalendar] ignoring override of ${seriesUid}: unparseable RECURRENCE-ID`);
+    return [];
+  }
+  const entry = normalizeEntry({ uid: seriesUid, ...override, recurrences: undefined });
+  return entry ? [{ recurrenceId, entry: { ...entry, rrule: null } }] : [];
 }
 
 /**
@@ -434,27 +473,83 @@ const RRULE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
  */
 function expandOccurrences(normalized, window) {
   if (!normalized.rrule) {
+    if (!isPublicSummary(normalized.summary)) return [];
     const event = toCalendarEvent(normalized, normalized.start, normalized.end);
     return isInWindow(event, window) ? [event] : [];
   }
 
-  const durationMs = normalized.end ? normalized.end.getTime() - normalized.start.getTime() : 0;
-  const excludedDays = new Set(
-    Object.keys(normalized.exdate || {}).map((key) => new Date(normalized.exdate[key]).toDateString())
-  );
+  // Each occurrence of a series has a slot: its instant for a timed series,
+  // its calendar date for an all-day one (see `slotKey`). EXDATE cancels a
+  // slot. A RECURRENCE-ID override takes a slot away from the series and
+  // publishes its own start, end, title and place instead.
+  const slotKey = (date) => occurrenceSlot(date, normalized.allDay);
+  const cancelled = new Set(normalized.exdate.map(slotKey));
+  const overridden = new Set(normalized.overrides.map((o) => slotKey(o.recurrenceId)));
 
-  return normalized.rrule
-    .between(
-      new Date(window.now.getTime() - RRULE_MARGIN_MS),
-      new Date(window.windowEnd.getTime() + RRULE_MARGIN_MS),
-      true
+  const generated = isPublicSummary(normalized.summary)
+    ? generatedOccurrences(normalized, window).filter((occurrenceStart) => {
+        const key = slotKey(occurrenceStart);
+        return !cancelled.has(key) && !overridden.has(key);
+      })
+    : [];
+
+  const durationMs = normalized.end ? normalized.end.getTime() - normalized.start.getTime() : 0;
+  const seriesEvents = generated.map((occurrenceStart) => {
+    const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+    return toCalendarEvent(normalized, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
+  });
+
+  // Overrides are not taken from `rrule.between`: an override can move an
+  // occurrence into the window from a slot outside it, or out of the window
+  // from a slot inside it. Each one is judged on its own new start and its
+  // own title.
+  const overrideEvents = normalized.overrides
+    .filter(({ recurrenceId, entry }) =>
+      !cancelled.has(slotKey(recurrenceId)) && isPublicSummary(entry.summary)
     )
-    .filter((occurrenceStart) => !excludedDays.has(occurrenceStart.toDateString()))
-    .map((occurrenceStart) => {
-      const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
-      return toCalendarEvent(normalized, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
-    })
-    .filter((event) => isInWindow(event, window));
+    .map(({ recurrenceId, entry }) =>
+      toCalendarEvent(entry, entry.start, entry.end, recurrenceId.toISOString())
+    );
+
+  return [...seriesEvents, ...overrideEvents].filter((event) => isInWindow(event, window));
+}
+
+/**
+ * The start of each occurrence `rrule.between` yields near the window.
+ *
+ * @param {NormalizedEntry} normalized
+ * @param {UpcomingWindow} window
+ * @returns {Date[]}
+ */
+function generatedOccurrences(normalized, window) {
+  return normalized.rrule.between(
+    new Date(window.now.getTime() - RRULE_MARGIN_MS),
+    new Date(window.windowEnd.getTime() + RRULE_MARGIN_MS),
+    true
+  );
+}
+
+/**
+ * The slot an occurrence of a series fills, as a string that EXDATE and
+ * RECURRENCE-ID values are matched against.
+ *
+ * - Timed series: the instant, in epoch milliseconds. Two occurrences on the
+ *   same day are two slots, so one EXDATE cancels one of them only.
+ * - All-day series: the floating calendar date (see
+ *   {@link floatingCalendarDate}). node-ical builds every date-only value at
+ *   the build machine's local midnight, the generated occurrences and the
+ *   EXDATE and RECURRENCE-ID values alike, so their local parts agree in
+ *   every build zone.
+ *
+ * `toDateString` is not used: it matches at day resolution and in the build
+ * machine's zone.
+ *
+ * @param {Date} date
+ * @param {boolean} allDay
+ * @returns {string}
+ */
+function occurrenceSlot(date, allDay) {
+  return allDay ? floatingCalendarDate(date) : String(date.getTime());
 }
 
 /**

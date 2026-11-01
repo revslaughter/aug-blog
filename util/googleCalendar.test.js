@@ -507,6 +507,170 @@ describe(BUILD_ZONE_SUITE, () => {
       expect(titles(events)).toEqual(["Evening Before Market", "Market Wednesday"]);
     });
   });
+
+  // A weekly class, Wednesdays 12:00-13:00 Chicago time (17:00 UTC in May).
+  describe("RECURRENCE-ID overrides and EXDATE (#80)", () => {
+    const SERIES = [
+      "UID:movement@aug.test",
+      "DTSTART;TZID=America/Chicago:20260506T120000",
+      "DTEND;TZID=America/Chicago:20260506T130000",
+      "RRULE:FREQ=WEEKLY;BYDAY=WE",
+      "SUMMARY:[PUBLIC] Mindful Movement",
+      "LOCATION:Back Field",
+      "DESCRIPTION:Bring a mat.",
+    ];
+    // "This event only": 13 May moved to Friday 15 May 09:00, renamed, relocated.
+    const MOVED_13_MAY = [
+      "UID:movement@aug.test",
+      "RECURRENCE-ID;TZID=America/Chicago:20260513T120000",
+      "DTSTART;TZID=America/Chicago:20260515T090000",
+      "DTEND;TZID=America/Chicago:20260515T103000",
+      "SUMMARY:[PUBLIC] Mindful Movement (moved)",
+      "LOCATION:Barn",
+      "DESCRIPTION:Rain plan.",
+    ];
+    const card = (event) => `${event.displayDate} | ${event.title} | ${event.location}`;
+
+    it("replaces the original occurrence with the override", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, MOVED_13_MAY),
+      });
+      expect(events.map(card)).toEqual([
+        "May 15, 2026, 9:00\u00A0AM\u00A0CDT | Mindful Movement (moved) | Barn",
+      ]);
+      expect(events[0]).toMatchObject({
+        start: "2026-05-15T14:00:00.000Z",
+        end: "2026-05-15T15:30:00.000Z",
+        description: "Rain plan.",
+        allDay: false,
+      });
+    });
+
+    it("keeps the other occurrences of the series", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-04T12:00:00Z"),
+        windowDays: 21,
+        loadCalendar: parsedCalendar(SERIES, MOVED_13_MAY),
+      });
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-06T17:00:00.000Z",
+        "2026-05-15T14:00:00.000Z",
+        "2026-05-20T17:00:00.000Z",
+      ]);
+      expect(new Set(events.map((event) => event.id)).size).toBe(3);
+    });
+
+    it("drops an occurrence moved out of the window", async () => {
+      const movedOut = [
+        "UID:movement@aug.test",
+        "RECURRENCE-ID;TZID=America/Chicago:20260513T120000",
+        "DTSTART;TZID=America/Chicago:20260610T120000",
+        "DTEND;TZID=America/Chicago:20260610T130000",
+        "SUMMARY:[PUBLIC] Mindful Movement",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, movedOut),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("publishes an occurrence moved into the window from a slot outside it", async () => {
+      // The 3 June slot is past windowEnd (18 May). Its override lands on 14 May.
+      const movedIn = [
+        "UID:movement@aug.test",
+        "RECURRENCE-ID;TZID=America/Chicago:20260603T120000",
+        "DTSTART;TZID=America/Chicago:20260514T180000",
+        "DTEND;TZID=America/Chicago:20260514T190000",
+        "SUMMARY:[PUBLIC] Mindful Movement (early)",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, movedIn),
+      });
+      expect(titles(events)).toEqual(["Mindful Movement", "Mindful Movement (early)"]);
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-13T17:00:00.000Z",
+        "2026-05-14T23:00:00.000Z",
+      ]);
+    });
+
+    it("drops an override whose title no longer starts with [PUBLIC]", async () => {
+      const madePrivate = [...MOVED_13_MAY.filter((line) => !line.startsWith("SUMMARY")), "SUMMARY:Mindful Movement"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(SERIES, madePrivate),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("EXDATE on a timed series removes only the instant it names", async () => {
+      const twiceDaily = [
+        "UID:watering@aug.test",
+        "DTSTART:20260512T130000Z",
+        "DTEND:20260512T140000Z",
+        "RRULE:FREQ=HOURLY;INTERVAL=10;COUNT=4",
+        "EXDATE:20260512T230000Z",
+        "SUMMARY:[PUBLIC] Watering",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-12T00:00:00Z"),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(twiceDaily),
+      });
+      // 13:00 and 23:00 UTC share a local date in most build zones. Matching
+      // by date would drop both; matching by instant drops 23:00 only.
+      expect(events.map((event) => event.start)).toEqual([
+        "2026-05-12T13:00:00.000Z",
+        "2026-05-13T09:00:00.000Z",
+        "2026-05-13T19:00:00.000Z",
+      ]);
+    });
+
+    it("EXDATE and an override on the same series each act on their own slot", async () => {
+      const series = [...SERIES, "EXDATE;TZID=America/Chicago:20260520T120000"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T12:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(series, MOVED_13_MAY),
+      });
+      expect(events.map((event) => event.start)).toEqual(["2026-05-15T14:00:00.000Z"]);
+    });
+
+    it("EXDATE on an all-day series removes the calendar date it names", async () => {
+      const series = [...WEEKLY_ALL_DAY, "EXDATE;VALUE=DATE:20260513"];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T18:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(series),
+      });
+      expect(events.map((event) => event.startDate)).toEqual(["2026-05-20"]);
+    });
+
+    it("an override on an all-day series moves that date only", async () => {
+      const moved = [
+        "UID:weekly@aug.test",
+        "RECURRENCE-ID;VALUE=DATE:20260520",
+        "DTSTART;VALUE=DATE:20260521",
+        "DTEND;VALUE=DATE:20260522",
+        "SUMMARY:[PUBLIC] Market Thursday",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-11T18:00:00Z"),
+        windowDays: 14,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY, moved),
+      });
+      expect(events.map((event) => `${event.startDate} ${event.title}`)).toEqual([
+        "2026-05-13 Market Wednesday",
+        "2026-05-21 Market Thursday",
+      ]);
+    });
+  });
 });
 
 // Jest cannot change the process zone after start-up, so the matrix runs the
@@ -550,7 +714,7 @@ if (!process.env[MATRIX_GUARD]) {
       expect(`exit ${child.status}\n${report}`).toMatch(/^exit 0\n/);
       // A name pattern that matched nothing would also exit 0. Require the
       // child to have run the block's tests, and failed none.
-      expect(report).toMatch(/Tests:\s+\d+ skipped, 1[0-9] passed/);
+      expect(report).toMatch(/Tests:\s+\d+ skipped, 2[0-9] passed/);
     }, 60000);
   });
 }
