@@ -36,8 +36,9 @@ const DEFAULT_WINDOW_DAYS = 30;
 const PUBLIC_PREFIX = "[PUBLIC]";
 
 /**
- * `start`/`end` are ISO instants — the moment an event happens — and are what
- * everything sorts and filters on.
+ * `start`/`end` are ISO instants — the moment an event happens. Timed events
+ * sort and filter on `start`. All-day events sort and filter on `startDate`
+ * instead (see {@link UpcomingWindow} and {@link sortKey}).
  *
  * `startDate` is the extra channel all-day events need. An all-day entry names
  * a date on a wall calendar, not a moment, and no instant can carry that date
@@ -109,13 +110,15 @@ export async function getUpcomingEvents({
     return [];
   }
 
-  const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+  const window = upcomingWindow(now, windowDays);
 
   const events = Object.values(calendar)
     .filter((entry) => entry.type === "VEVENT" && isPublicSummary(entry.summary))
-    .flatMap((entry) => expandOccurrences(entry, now, windowEnd));
+    .flatMap((entry) => expandOccurrences(entry, window));
 
-  events.sort((a, b) => new Date(a.start) - new Date(b.start));
+  // Array.prototype.sort is stable, so events with equal keys keep the order
+  // the calendar gave them.
+  events.sort((a, b) => sortKey(a) - sortKey(b));
 
   return events.slice(0, limit);
 }
@@ -186,23 +189,116 @@ function resolveNow(frozen) {
 }
 
 /**
+ * The "upcoming" window, held two ways.
+ *
+ * Timed events are moments, so they are compared by instant: a timed event
+ * is in the window when `now <= start <= windowEnd`.
+ *
+ * All-day events are calendar dates, not moments, so they are compared by
+ * date in the venue's zone, America/Chicago:
+ *
+ * - Near edge: the event's date is on or after `today`, the date of `now` in
+ *   America/Chicago. An all-day event therefore stays upcoming for the whole
+ *   of its own date (#78).
+ * - Far edge: the event's date is on or before `lastDate`, the date of
+ *   `windowEnd` in America/Chicago. An all-day event on that date is in,
+ *   whatever the hour of `windowEnd` (#76).
+ *
+ * Both dates come from the injected `now`. Neither the wall clock nor the
+ * build machine's zone takes part.
+ *
+ * @typedef {{
+ *   now: Date,
+ *   windowEnd: Date,
+ *   today: Temporal.PlainDate,
+ *   lastDate: Temporal.PlainDate,
+ * }} UpcomingWindow
+ */
+
+/**
+ * @param {Date} now
+ * @param {number} windowDays
+ * @returns {UpcomingWindow}
+ */
+function upcomingWindow(now, windowDays) {
+  const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+  return { now, windowEnd, today: venueDate(now), lastDate: venueDate(windowEnd) };
+}
+
+/**
+ * The date an instant falls on in the venue's zone.
+ *
+ * @param {Date} instant
+ * @returns {Temporal.PlainDate}
+ */
+function venueDate(instant) {
+  return Temporal.Instant.fromEpochMilliseconds(instant.getTime())
+    .toZonedDateTimeISO(DISPLAY_TIME_ZONE)
+    .toPlainDate();
+}
+
+/**
+ * Whether a normalized event is in the window. {@link UpcomingWindow} states
+ * the rule.
+ *
+ * @param {CalendarEvent} event
+ * @param {UpcomingWindow} window
+ * @returns {boolean}
+ */
+function isInWindow(event, { now, windowEnd, today, lastDate }) {
+  if (event.allDay) {
+    const date = Temporal.PlainDate.from(event.startDate);
+    return (
+      Temporal.PlainDate.compare(date, today) >= 0 &&
+      Temporal.PlainDate.compare(date, lastDate) <= 0
+    );
+  }
+  const start = new Date(event.start);
+  return start >= now && start <= windowEnd;
+}
+
+/**
+ * The instant an event sorts by. A timed event sorts by its own instant. An
+ * all-day event sorts at the start of its date in America/Chicago. Its
+ * `start` is not used: node-ical puts it at the build machine's local
+ * midnight, which moves with the build zone (#70).
+ *
+ * @param {CalendarEvent} event
+ * @returns {number} epoch milliseconds
+ */
+function sortKey(event) {
+  if (event.allDay) {
+    return Temporal.PlainDate.from(event.startDate).toZonedDateTime(DISPLAY_TIME_ZONE)
+      .epochMilliseconds;
+  }
+  return new Date(event.start).getTime();
+}
+
+/**
+ * How far past each edge of the window `rrule.between` looks. An all-day
+ * occurrence comes back at the build machine's local midnight, which can be
+ * up to a day away from the same date in America/Chicago. Two days covers
+ * every zone. {@link isInWindow} then applies the real rule.
+ */
+const RRULE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
  * A VEVENT is either a single occurrence or, if it has an RRULE, a
- * recurring series. Either way only the part of it falling inside
- * [now, windowEnd] is published: recurring events are expanded to their
- * occurrences in that range, single occurrences pass through if they land
- * in it. Both bounds apply to both kinds, so `windowDays` means the same
- * thing for a one-off in September as it does for a weekly class (#31).
+ * recurring series. Either way only the part of it in the window is
+ * published: recurring events are expanded to their occurrences, single
+ * occurrences pass through if they land in it. Both kinds go through
+ * {@link isInWindow}, so `windowDays` means the same thing for a one-off in
+ * September as it does for a weekly class (#31).
  *
  * @param {import("node-ical").VEvent} entry
- * @param {Date} now
- * @param {Date} windowEnd
+ * @param {UpcomingWindow} window
  * @returns {CalendarEvent[]}
  */
-function expandOccurrences(entry, now, windowEnd) {
+function expandOccurrences(entry, window) {
   if (!entry.rrule) {
-    const start = entry.start && new Date(entry.start);
-    if (!start || start < now || start > windowEnd) return [];
-    return [toCalendarEvent(entry, entry.start, entry.end)];
+    if (!entry.start) return [];
+    const event = toCalendarEvent(entry, entry.start, entry.end);
+    return isInWindow(event, window) ? [event] : [];
   }
 
   const durationMs =
@@ -212,12 +308,17 @@ function expandOccurrences(entry, now, windowEnd) {
   );
 
   return entry.rrule
-    .between(now, windowEnd, true)
+    .between(
+      new Date(window.now.getTime() - RRULE_MARGIN_MS),
+      new Date(window.windowEnd.getTime() + RRULE_MARGIN_MS),
+      true
+    )
     .filter((occurrenceStart) => !excludedDays.has(occurrenceStart.toDateString()))
     .map((occurrenceStart) => {
       const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
       return toCalendarEvent(entry, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
-    });
+    })
+    .filter((event) => isInWindow(event, window));
 }
 
 /**

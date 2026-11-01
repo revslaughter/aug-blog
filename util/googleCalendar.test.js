@@ -272,8 +272,8 @@ describe("all-day events, parsed for real", () => {
     expect((await faire()).displayDate).not.toMatch(/CDT|CST|UTC|GMT/);
   });
 
-  // The instant is deliberately left alone — sorting and windowing still use
-  // it, and it is only the *date* that an instant cannot express.
+  // The instant is still exposed for consumers that want one. Sorting and
+  // windowing of all-day events use `startDate` instead (#78, #70, #76).
   it("still exposes an ISO instant on `start`", async () => {
     expect((await faire()).start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
@@ -350,6 +350,210 @@ describe("recurring all-day events, parsed for real", () => {
     ]);
   });
 });
+
+/**
+ * A calendar parsed by the real node-ical from inline iCalendar text. A
+ * `VALUE=DATE` entry then lands at local midnight in the zone this process
+ * runs in, exactly as in a real build. A hand-written `start` could not do
+ * that.
+ */
+function parsedCalendar(...vevents) {
+  const realIcal = jest.requireActual("node-ical");
+  const text = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//AUG//unit test//EN",
+    ...vevents.flatMap((lines) => ["BEGIN:VEVENT", "DTSTAMP:20260101T000000Z", ...lines, "END:VEVENT"]),
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const calendar = realIcal.sync.parseICS(text);
+  return () => Promise.resolve(calendar);
+}
+
+const SUMMER_FAIRE = [
+  "UID:faire@aug.test",
+  "DTSTART;VALUE=DATE:20260523",
+  "DTEND;VALUE=DATE:20260524",
+  "SUMMARY:[PUBLIC] Summer Faire",
+];
+
+// 20:00 CDT on 22 May 2026 is 01:00 UTC on the 23rd.
+const EVENING_BEFORE = [
+  "UID:evening@aug.test",
+  "DTSTART:20260523T010000Z",
+  "DTEND:20260523T030000Z",
+  "SUMMARY:[PUBLIC] Evening Before",
+];
+
+const WEEKLY_ALL_DAY = [
+  "UID:weekly@aug.test",
+  "DTSTART;VALUE=DATE:20260506",
+  "DTEND;VALUE=DATE:20260507",
+  "RRULE:FREQ=WEEKLY;BYDAY=WE",
+  "SUMMARY:[PUBLIC] Market Wednesday",
+];
+
+const titles = (events) => events.map((event) => event.title);
+
+/**
+ * Every test in this block must hold in any build zone. The matrix below
+ * runs this block again under each zone the WP names (#78, #70, #76).
+ */
+const BUILD_ZONE_SUITE = "all-day events are independent of the build zone";
+
+describe(BUILD_ZONE_SUITE, () => {
+  describe("near edge: published for the whole of its own date (#78)", () => {
+    // 00:30, 13:00 (the daily refresh) and 23:30 CDT on 23 May 2026.
+    it.each([
+      ["00:30", "2026-05-23T05:30:00Z"],
+      ["13:00", "2026-05-23T18:00:00Z"],
+      ["23:30", "2026-05-24T04:30:00Z"],
+    ])("at %s Chicago time on the day", async (_label, iso) => {
+      const events = await getUpcomingEvents({
+        now: new Date(iso),
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Summer Faire"]);
+    });
+
+    it("is dropped once its date has passed in Chicago", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-24T05:30:00Z"), // 00:30 CDT on the 24th
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe("far edge: in when its date is on or before windowEnd's date (#76)", () => {
+    it("keeps an all-day event on windowEnd's date, before its midnight instant", async () => {
+      // windowEnd is 23 May 00:30 CDT. Its date is the 23rd.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-22T05:30:00Z"),
+        windowDays: 1,
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Summer Faire"]);
+    });
+
+    it("excludes an all-day event the day after windowEnd's date", async () => {
+      // windowEnd is 22 May 20:00 CDT. Its date is the 22nd. Under
+      // TZ=Asia/Tokyo the Faire's instant (22 May 15:00 UTC) is before
+      // windowEnd, so only a date comparison excludes it.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-22T01:00:00Z"),
+        windowDays: 1,
+        loadCalendar: parsedCalendar(SUMMER_FAIRE),
+      });
+      expect(events).toEqual([]);
+    });
+  });
+
+  describe("ordering (#70)", () => {
+    it("sorts an all-day event on the 23rd after a timed event at 20:00 CDT on the 22nd", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-20T18:00:00Z"),
+        loadCalendar: parsedCalendar(SUMMER_FAIRE, EVENING_BEFORE),
+      });
+      expect(titles(events)).toEqual(["Evening Before", "Summer Faire"]);
+    });
+
+    it("gives the same order whatever order the calendar lists them in", async () => {
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-20T18:00:00Z"),
+        loadCalendar: parsedCalendar(EVENING_BEFORE, SUMMER_FAIRE),
+      });
+      expect(titles(events)).toEqual(["Evening Before", "Summer Faire"]);
+    });
+  });
+
+  describe("recurring all-day occurrences follow the same rules", () => {
+    it.each([
+      ["00:30", "2026-05-13T05:30:00Z"],
+      ["13:00", "2026-05-13T18:00:00Z"],
+      ["23:30", "2026-05-14T04:30:00Z"],
+    ])("keeps the occurrence dated today at %s Chicago time", async (_label, iso) => {
+      const events = await getUpcomingEvents({
+        now: new Date(iso),
+        windowDays: 7,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY),
+      });
+      // 13 May is today. 20 May is on windowEnd's date and is in too.
+      expect(events.map((event) => event.startDate)).toEqual(["2026-05-13", "2026-05-20"]);
+    });
+
+    it("drops an occurrence past windowEnd's date and one before today", async () => {
+      // now 14 May 13:00 CDT, windowEnd 19 May 13:00 CDT.
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-14T18:00:00Z"),
+        windowDays: 5,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY),
+      });
+      expect(events).toEqual([]);
+    });
+
+    it("sorts an occurrence after a timed event on the evening before", async () => {
+      const evening = [
+        "UID:evening-weekly@aug.test",
+        "DTSTART:20260520T010000Z", // 20:00 CDT on 19 May
+        "DTEND:20260520T030000Z",
+        "SUMMARY:[PUBLIC] Evening Before Market",
+      ];
+      const events = await getUpcomingEvents({
+        now: new Date("2026-05-18T18:00:00Z"),
+        windowDays: 3,
+        loadCalendar: parsedCalendar(WEEKLY_ALL_DAY, evening),
+      });
+      expect(titles(events)).toEqual(["Evening Before Market", "Market Wednesday"]);
+    });
+  });
+});
+
+// Jest cannot change the process zone after start-up, so the matrix runs the
+// block above in a child Jest per zone. The child sets the guard variable, so
+// it does not start a matrix of its own.
+const MATRIX_GUARD = "AUG_BUILD_ZONE_MATRIX_CHILD";
+const BUILD_ZONES = [
+  "UTC",
+  "America/Chicago",
+  "Asia/Tokyo",
+  "Pacific/Kiritimati",
+  "Pacific/Honolulu",
+];
+
+if (!process.env[MATRIX_GUARD]) {
+  describe("build zone matrix", () => {
+    const { spawnSync } = jest.requireActual("child_process");
+    const path = jest.requireActual("path");
+
+    it.each(BUILD_ZONES)("passes under TZ=%s", (zone) => {
+      const jestBin = path.join(process.cwd(), "node_modules", "jest", "bin", "jest.js");
+      const child = spawnSync(
+        process.execPath,
+        [
+          jestBin,
+          "--ci",
+          "--runTestsByPath",
+          path.join(process.cwd(), "util", "googleCalendar.test.js"),
+          "--testNamePattern",
+          BUILD_ZONE_SUITE,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, TZ: zone, [MATRIX_GUARD]: "1" },
+          encoding: "utf8",
+        }
+      );
+      const report = `${child.stdout}${child.stderr}`;
+      // The child's report is part of the received value, so a failure in
+      // the child prints here.
+      expect(`exit ${child.status}\n${report}`).toMatch(/^exit 0\n/);
+      // A name pattern that matched nothing would also exit 0. Require the
+      // child to have run the block's tests, and failed none.
+      expect(report).toMatch(/Tests:\s+\d+ skipped, 1[0-9] passed/);
+    }, 60000);
+  });
+}
 
 describe("calendar sources", () => {
   beforeEach(() => {
