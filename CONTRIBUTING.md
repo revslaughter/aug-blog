@@ -57,16 +57,34 @@ gives the details.
 
 ## CI
 
-GitHub Actions runs on every push to `main`, `alpha`, `beta` and `feature/**`,
-and on pull requests targeting the first three:
+CI runs at promotion only. GitHub Actions runs on pull requests into `beta`
+and `main`, and on pushes to `beta` and `main`. It does not run on `feature/**`
+pushes, on pushes to `alpha`, or on pull requests into `alpha`.
+
+1. A PR into `alpha` gets gate 1 of `scripts/merge-gate.py`. This is the local
+   run. The script merges the PR head onto the current `origin/alpha` in a
+   temporary worktree. It runs `npm ci`, `npm run lint`, `npm run test:ci` at
+   `TZ=Asia/Tokyo` and at `TZ=America/Chicago`, and `npm run build`. It passes
+   only when all pass. A red check run on the head also fails it.
+2. A promotion into `beta` or `main` runs the jobs below.
+3. A red promotion CI gets a fix branch into `alpha`. It is a normal WP. The
+   fix then moves to `beta` with the next promotion.
 
 | Job | What it runs |
 | --- | ------------ |
 | Lint | `npm run lint` |
 | Build | `npm run build` |
-| Test | `npm run test:ci` |
+| Test | `npm run test:ci`, as a matrix with `TZ=Asia/Tokyo` and `TZ=America/Chicago` |
 | Screenshots | `npm run test:visual`, in the pinned Playwright container. Pull requests into `beta` and `main` only |
-| Security Audit | `npm audit --audit-level=high`, non-blocking |
+| Security Audit | `npm audit --audit-level=high`, non-blocking. Same triggers as the other jobs |
+
+The Test job runs at two zones, Asia/Tokyo and America/Chicago, not UTC. At
+UTC a local date and a UTC date are equal, so a test that guards against
+mixing them cannot fail there. Asia/Tokyo (UTC+9) catches a date taken from
+the UTC instant in the recurring all-day code. America/Chicago (UTC-5 or
+UTC-6) catches bugs that show only at a negative offset. The two runs are
+independent, so a failure in one zone does not hide the other.
+The Netlify build and the screenshot tests stay at UTC.
 
 Lint gates Build, Test and Screenshots; the audit runs independently. The
 screenshot job uses the same container image as `npm run baseline`, which is
