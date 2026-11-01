@@ -36,8 +36,9 @@ const DEFAULT_WINDOW_DAYS = 30;
 const PUBLIC_PREFIX = "[PUBLIC]";
 
 /**
- * `start`/`end` are ISO instants — the moment an event happens — and are what
- * everything sorts and filters on.
+ * `start`/`end` are ISO instants — the moment an event happens. Timed events
+ * sort and filter on `start`. All-day events sort and filter on `startDate`
+ * instead (see {@link UpcomingWindow} and {@link sortKey}).
  *
  * `startDate` is the extra channel all-day events need. An all-day entry names
  * a date on a wall calendar, not a moment, and no instant can carry that date
@@ -109,15 +110,194 @@ export async function getUpcomingEvents({
     return [];
   }
 
-  const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+  const window = upcomingWindow(now, windowDays);
 
   const events = Object.values(calendar)
-    .filter((entry) => entry.type === "VEVENT" && isPublicSummary(entry.summary))
-    .flatMap((entry) => expandOccurrences(entry, now, windowEnd));
+    .filter((entry) => entry && entry.type === "VEVENT")
+    .flatMap((entry) => publishedOccurrences(entry, window));
 
-  events.sort((a, b) => new Date(a.start) - new Date(b.start));
+  // Array.prototype.sort is stable, so events with equal keys keep the order
+  // the calendar gave them.
+  events.sort((a, b) => sortKey(a) - sortKey(b));
 
   return events.slice(0, limit);
+}
+
+/**
+ * One calendar entry's published occurrences. Each entry is normalized and
+ * expanded inside its own try/catch, `rrule.between` included, so one bad
+ * entry is warned about and dropped and the rest of the calendar still
+ * publishes. This keeps the "never throws" contract of
+ * {@link getUpcomingEvents} (#64).
+ *
+ * @param {object} entry a raw node-ical VEVENT
+ * @param {UpcomingWindow} window
+ * @returns {CalendarEvent[]}
+ */
+function publishedOccurrences(entry, window) {
+  try {
+    const normalized = normalizeEntry(entry);
+    if (!normalized) return [];
+    return expandOccurrences(normalized, window);
+  } catch (err) {
+    console.warn(`[googleCalendar] dropping event ${entryUid(entry)}: ${err?.message ?? err}`);
+    return [];
+  }
+}
+
+/**
+ * A node-ical entry coerced into plain values. Every field has its declared
+ * type, so no code after {@link normalizeEntry} sees node-ical's object model.
+ *
+ * @typedef {{
+ *   uid: string,
+ *   summary: string|null,
+ *   location: string|null,
+ *   description: string|null,
+ *   url: string|null,
+ *   start: Date,
+ *   end: Date|null,
+ *   allDay: boolean,
+ *   rrule: {between: (after: Date, before: Date, inc: boolean) => Date[]}|null,
+ *   exdate: Date[],
+ *   overrides: NormalizedOverride[],
+ * }} NormalizedEntry
+ */
+
+/**
+ * One RECURRENCE-ID override: an occurrence of a series that the client edited
+ * on its own ("this event only" in Google Calendar). `recurrenceId` is the
+ * original slot it replaces; `entry` is the occurrence as it now stands.
+ *
+ * @typedef {{recurrenceId: Date, entry: NormalizedEntry}} NormalizedOverride
+ */
+
+/**
+ * The adapter at the node-ical boundary (#79). It is the only code in this
+ * module that reads `summary`, `location`, `description`, `url`, `start` and
+ * `end` from a node-ical entry.
+ *
+ * node-ical gives a property that has parameters (`SUMMARY;LANGUAGE=en-US:`,
+ * `DESCRIPTION;ALTREP=...`, `URL;VALUE=URI:`) as `{params, val}`, not as a
+ * string. Each text field becomes a plain string here, or null.
+ *
+ * An entry whose DTSTART or DTEND does not parse is dropped with a warning
+ * that names its UID. node-ical leaves such a value as the raw string (#64).
+ *
+ * @param {object} entry a raw node-ical VEVENT
+ * @returns {NormalizedEntry|null} null when the entry is dropped
+ */
+function normalizeEntry(entry) {
+  const uid = entryUid(entry);
+
+  const start = validDate(entry.start);
+  if (!start) {
+    console.warn(`[googleCalendar] dropping event ${uid}: unparseable DTSTART`);
+    return null;
+  }
+
+  let end = null;
+  if (entry.end !== undefined && entry.end !== null) {
+    end = validDate(entry.end);
+    if (!end) {
+      console.warn(`[googleCalendar] dropping event ${uid}: unparseable DTEND`);
+      return null;
+    }
+  }
+
+  return {
+    uid,
+    summary: plainText(entry.summary),
+    location: plainText(entry.location),
+    description: plainText(entry.description),
+    url: webUrl(plainText(entry.url)),
+    start,
+    end,
+    allDay: entry.datetype === "date",
+    rrule: typeof entry.rrule?.between === "function" ? entry.rrule : null,
+    exdate: uniqueValues(entry.exdate).map(validDate).filter(Boolean),
+    overrides: uniqueValues(entry.recurrences).flatMap((override) => normalizeOverride(override, uid)),
+  };
+}
+
+/**
+ * node-ical keys each EXDATE and each RECURRENCE-ID override twice, by a date
+ * string and by an ISO string, with the same value under both keys. This
+ * gives each value once.
+ *
+ * @param {unknown} map
+ * @returns {unknown[]}
+ */
+function uniqueValues(map) {
+  if (!map || typeof map !== "object") return [];
+  return [...new Set(Object.values(map))];
+}
+
+/**
+ * @param {object} override a raw node-ical VEVENT that has a RECURRENCE-ID
+ * @param {string} seriesUid
+ * @returns {NormalizedOverride[]} empty when the override is dropped
+ */
+function normalizeOverride(override, seriesUid) {
+  if (!override || typeof override !== "object") return [];
+  const recurrenceId = validDate(override.recurrenceid);
+  if (!recurrenceId) {
+    console.warn(`[googleCalendar] ignoring override of ${seriesUid}: unparseable RECURRENCE-ID`);
+    return [];
+  }
+  const entry = normalizeEntry({ uid: seriesUid, ...override, recurrences: undefined });
+  return entry ? [{ recurrenceId, entry: { ...entry, rrule: null } }] : [];
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {string} the entry's UID, for ids and warnings
+ */
+function entryUid(entry) {
+  return typeof entry?.uid === "string" && entry.uid ? entry.uid : "(no UID)";
+}
+
+/**
+ * node-ical's text value as a plain string: a string as it is, `{params, val}`
+ * by its `val`. Anything else, and a blank string, is null.
+ *
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function plainText(value) {
+  if (value && typeof value === "object" && "val" in value) {
+    return plainText(value.val);
+  }
+  if (typeof value !== "string") return null;
+  return value.trim() === "" ? null : value;
+}
+
+/**
+ * A link a visitor can follow: an absolute `http` or `https` URL. Any other
+ * value is null, so no `javascript:` or relative link reaches the page.
+ *
+ * @param {string|null} value
+ * @returns {string|null}
+ */
+function webUrl(value) {
+  if (!value) return null;
+  let parsed;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return null;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:" ? value.trim() : null;
+}
+
+/**
+ * node-ical gives a parsed date as a Date. An unparseable one stays a string.
+ *
+ * @param {unknown} value
+ * @returns {Date|null} null unless `value` is a Date with a real time
+ */
+function validDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime()) ? value : null;
 }
 
 /**
@@ -186,38 +366,190 @@ function resolveNow(frozen) {
 }
 
 /**
- * A VEVENT is either a single occurrence or, if it has an RRULE, a
- * recurring series. Either way only the part of it falling inside
- * [now, windowEnd] is published: recurring events are expanded to their
- * occurrences in that range, single occurrences pass through if they land
- * in it. Both bounds apply to both kinds, so `windowDays` means the same
- * thing for a one-off in September as it does for a weekly class (#31).
+ * The "upcoming" window, held two ways.
  *
- * @param {import("node-ical").VEvent} entry
+ * Timed events are moments, so they are compared by instant: a timed event
+ * is in the window when `now <= start <= windowEnd`.
+ *
+ * All-day events are calendar dates, not moments, so they are compared by
+ * date in the venue's zone, America/Chicago:
+ *
+ * - Near edge: the event's date is on or after `today`, the date of `now` in
+ *   America/Chicago. An all-day event therefore stays upcoming for the whole
+ *   of its own date (#78).
+ * - Far edge: the event's date is on or before `lastDate`, the date of
+ *   `windowEnd` in America/Chicago. An all-day event on that date is in,
+ *   whatever the hour of `windowEnd` (#76).
+ *
+ * Both dates come from the injected `now`. Neither the wall clock nor the
+ * build machine's zone takes part.
+ *
+ * @typedef {{
+ *   now: Date,
+ *   windowEnd: Date,
+ *   today: Temporal.PlainDate,
+ *   lastDate: Temporal.PlainDate,
+ * }} UpcomingWindow
+ */
+
+/**
  * @param {Date} now
- * @param {Date} windowEnd
+ * @param {number} windowDays
+ * @returns {UpcomingWindow}
+ */
+function upcomingWindow(now, windowDays) {
+  const windowEnd = new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000);
+  return { now, windowEnd, today: venueDate(now), lastDate: venueDate(windowEnd) };
+}
+
+/**
+ * The date an instant falls on in the venue's zone.
+ *
+ * @param {Date} instant
+ * @returns {Temporal.PlainDate}
+ */
+function venueDate(instant) {
+  return Temporal.Instant.fromEpochMilliseconds(instant.getTime())
+    .toZonedDateTimeISO(DISPLAY_TIME_ZONE)
+    .toPlainDate();
+}
+
+/**
+ * Whether a normalized event is in the window. {@link UpcomingWindow} states
+ * the rule.
+ *
+ * @param {CalendarEvent} event
+ * @param {UpcomingWindow} window
+ * @returns {boolean}
+ */
+function isInWindow(event, { now, windowEnd, today, lastDate }) {
+  if (event.allDay) {
+    const date = Temporal.PlainDate.from(event.startDate);
+    return (
+      Temporal.PlainDate.compare(date, today) >= 0 &&
+      Temporal.PlainDate.compare(date, lastDate) <= 0
+    );
+  }
+  const start = new Date(event.start);
+  return start >= now && start <= windowEnd;
+}
+
+/**
+ * The instant an event sorts by. A timed event sorts by its own instant. An
+ * all-day event sorts at the start of its date in America/Chicago. Its
+ * `start` is not used: node-ical puts it at the build machine's local
+ * midnight, which moves with the build zone (#70).
+ *
+ * @param {CalendarEvent} event
+ * @returns {number} epoch milliseconds
+ */
+function sortKey(event) {
+  if (event.allDay) {
+    return Temporal.PlainDate.from(event.startDate).toZonedDateTime(DISPLAY_TIME_ZONE)
+      .epochMilliseconds;
+  }
+  return new Date(event.start).getTime();
+}
+
+/**
+ * How far past each edge of the window `rrule.between` looks. An all-day
+ * occurrence comes back at the build machine's local midnight, which can be
+ * up to a day away from the same date in America/Chicago. Two days covers
+ * every zone. {@link isInWindow} then applies the real rule.
+ */
+const RRULE_MARGIN_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * A VEVENT is either a single occurrence or, if it has an RRULE, a
+ * recurring series. Either way only the part of it in the window is
+ * published: recurring events are expanded to their occurrences, single
+ * occurrences pass through if they land in it. Both kinds go through
+ * {@link isInWindow}, so `windowDays` means the same thing for a one-off in
+ * September as it does for a weekly class (#31).
+ *
+ * @param {NormalizedEntry} normalized
+ * @param {UpcomingWindow} window
  * @returns {CalendarEvent[]}
  */
-function expandOccurrences(entry, now, windowEnd) {
-  if (!entry.rrule) {
-    const start = entry.start && new Date(entry.start);
-    if (!start || start < now || start > windowEnd) return [];
-    return [toCalendarEvent(entry, entry.start, entry.end)];
+function expandOccurrences(normalized, window) {
+  if (!normalized.rrule) {
+    if (!isPublicSummary(normalized.summary)) return [];
+    const event = toCalendarEvent(normalized, normalized.start, normalized.end);
+    return isInWindow(event, window) ? [event] : [];
   }
 
-  const durationMs =
-    entry.start && entry.end ? new Date(entry.end) - new Date(entry.start) : 0;
-  const excludedDays = new Set(
-    Object.keys(entry.exdate || {}).map((key) => new Date(entry.exdate[key]).toDateString())
-  );
+  // Each occurrence of a series has a slot: its instant for a timed series,
+  // its calendar date for an all-day one (see `slotKey`). EXDATE cancels a
+  // slot. A RECURRENCE-ID override takes a slot away from the series and
+  // publishes its own start, end, title and place instead.
+  const slotKey = (date) => occurrenceSlot(date, normalized.allDay);
+  const cancelled = new Set(normalized.exdate.map(slotKey));
+  const overridden = new Set(normalized.overrides.map((o) => slotKey(o.recurrenceId)));
 
-  return entry.rrule
-    .between(now, windowEnd, true)
-    .filter((occurrenceStart) => !excludedDays.has(occurrenceStart.toDateString()))
-    .map((occurrenceStart) => {
-      const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
-      return toCalendarEvent(entry, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
-    });
+  const generated = isPublicSummary(normalized.summary)
+    ? generatedOccurrences(normalized, window).filter((occurrenceStart) => {
+        const key = slotKey(occurrenceStart);
+        return !cancelled.has(key) && !overridden.has(key);
+      })
+    : [];
+
+  const durationMs = normalized.end ? normalized.end.getTime() - normalized.start.getTime() : 0;
+  const seriesEvents = generated.map((occurrenceStart) => {
+    const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+    return toCalendarEvent(normalized, occurrenceStart, occurrenceEnd, occurrenceStart.toISOString());
+  });
+
+  // Overrides are not taken from `rrule.between`: an override can move an
+  // occurrence into the window from a slot outside it, or out of the window
+  // from a slot inside it. Each one is judged on its own new start and its
+  // own title.
+  const overrideEvents = normalized.overrides
+    .filter(({ recurrenceId, entry }) =>
+      !cancelled.has(slotKey(recurrenceId)) && isPublicSummary(entry.summary)
+    )
+    .map(({ recurrenceId, entry }) =>
+      toCalendarEvent(entry, entry.start, entry.end, recurrenceId.toISOString())
+    );
+
+  return [...seriesEvents, ...overrideEvents].filter((event) => isInWindow(event, window));
+}
+
+/**
+ * The start of each occurrence `rrule.between` yields near the window.
+ *
+ * @param {NormalizedEntry} normalized
+ * @param {UpcomingWindow} window
+ * @returns {Date[]}
+ */
+function generatedOccurrences(normalized, window) {
+  return normalized.rrule.between(
+    new Date(window.now.getTime() - RRULE_MARGIN_MS),
+    new Date(window.windowEnd.getTime() + RRULE_MARGIN_MS),
+    true
+  );
+}
+
+/**
+ * The slot an occurrence of a series fills, as a string that EXDATE and
+ * RECURRENCE-ID values are matched against.
+ *
+ * - Timed series: the instant, in epoch milliseconds. Two occurrences on the
+ *   same day are two slots, so one EXDATE cancels one of them only.
+ * - All-day series: the floating calendar date (see
+ *   {@link floatingCalendarDate}). node-ical builds every date-only value at
+ *   the build machine's local midnight, the generated occurrences and the
+ *   EXDATE and RECURRENCE-ID values alike, so their local parts agree in
+ *   every build zone.
+ *
+ * `toDateString` is not used: it matches at day resolution and in the build
+ * machine's zone.
+ *
+ * @param {Date} date
+ * @param {boolean} allDay
+ * @returns {string}
+ */
+function occurrenceSlot(date, allDay) {
+  return allDay ? floatingCalendarDate(date) : String(date.getTime());
 }
 
 /**
@@ -247,26 +579,26 @@ function stripPublicPrefix(summary) {
 }
 
 /**
- * @param {import("node-ical").VEvent} entry
+ * @param {NormalizedEntry} normalized
  * @param {Date|string} start
  * @param {Date|string} end
  * @param {string} [idSuffix]
  * @returns {CalendarEvent}
  */
-function toCalendarEvent(entry, start, end, idSuffix = "") {
-  const allDay = entry.datetype === "date";
+function toCalendarEvent(normalized, start, end, idSuffix = "") {
+  const allDay = normalized.allDay;
   const startDate = allDay ? floatingCalendarDate(start) : null;
   return {
-    id: `${entry.uid}${idSuffix}`,
-    title: stripPublicPrefix(entry.summary),
+    id: `${normalized.uid}${idSuffix}`,
+    title: stripPublicPrefix(normalized.summary),
     start: new Date(start).toISOString(),
     end: end ? new Date(end).toISOString() : new Date(start).toISOString(),
     allDay,
     startDate,
     displayDate: formatDisplayDate({ start, allDay, startDate }),
-    location: entry.location || null,
-    description: entry.description || null,
-    url: entry.url || null,
+    location: normalized.location,
+    description: normalized.description,
+    url: normalized.url,
   };
 }
 

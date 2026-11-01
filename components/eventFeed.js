@@ -3,7 +3,9 @@ import Image from "next/image";
 import styles from "./eventFeed.module.css";
 
 /**
- * `start`/`end` are ISO instants, used here only for ordering. `displayDate` is
+ * The feed does not sort. It renders events in the order it gets them.
+ * util/googleCalendar.js owns the order, because an all-day event sorts by
+ * its calendar date, which `start` cannot carry. `displayDate` is
  * the finished date line to print — already formatted, already carrying the
  * `CDT`/`CST` label on timed events — see util/googleCalendar.js.
  *
@@ -49,16 +51,14 @@ export default function EventFeed({ events }) {
 				</p>
 			) : (
 				<ul className={styles.list}>
-					{[...events]
-						.sort((event, anotherEvent) => new Date(event.start) - new Date(anotherEvent.start))
-						.map((event) => (
-							<EventCard
-								event={event}
-								key={event.id}
-								isSelected={selectedEvent?.id === event.id}
-								onSelect={setSelectedEvent}
-							/>
-						))}
+					{events.map((event) => (
+						<EventCard
+							event={event}
+							key={event.id}
+							isSelected={selectedEvent?.id === event.id}
+							onSelect={setSelectedEvent}
+						/>
+					))}
 				</ul>
 			)}
 			<EventModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />

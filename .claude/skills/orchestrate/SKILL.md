@@ -26,7 +26,12 @@ many WPs touch the same few files (`docs/agentic-development.md` section 11).
 4. If the local clone is shallow, run `git fetch --unshallow`. A shallow clone
    cannot find merge bases.
 5. Run `git fetch origin alpha`. WPs branch from `origin/alpha` and merge
-   into it. You never merge into `beta`, `main`, or `publish`.
+   into it. You never merge into `beta`, `main`, or `publish`. If `alpha`
+   does not exist, tell the developer and stop. The developer creates it.
+6. Run `docker info`. In a cloud session the Docker client is installed but
+   the daemon does not run. Start it with `dockerd` in the background, and
+   wait until `docker info` succeeds. The implementers and reviewers then
+   run `npm run baseline:check` (`docs/agentic-development.md` section 10).
 
 ## 1. Build the state
 
@@ -60,7 +65,10 @@ Repeat until no WP is open, or the developer says stop:
       `haiku`, `model:sonnet` gives `sonnet`, and `model:opus` gives `opus`.
       A WP with no `model:` label runs on sonnet.
 2. **Handle a finished implementer.**
-   1. If it returned a PR number (a draft PR): set `status:in-review`. Start
+   1. If it returned a PR number (a draft PR): set `status:in-review`. If the
+      WP issue has `needs-human`, add `needs-human` to the PR too, before
+      any review starts. If the implementer dispatched the "Refresh screenshot
+      baselines" workflow, wait until that run ends. Then start
       a new `pr-reviewer` agent in the background with
       `isolation: "worktree"` and the prompt `Review PR #<n>.` Send nothing
       else.
@@ -107,23 +115,32 @@ Repeat until no WP is open, or the developer says stop:
       session. In a cloud session without the MCP tool, use the REST route
       `POST /repos/{owner}/{repo}/pulls/{n}/ccr/ready_for_review`. Do this
       before you wait for the developer on a `needs-human` PR.
-   6. Else run `scripts/merge-gate.py <n>`. Run it again when CI ends. If CI
-      is red, start a fix round with the failing check and its first failing
-      line. The Screenshots job skips on PRs into `alpha`; the implementer's
-      `baseline:check` result stands in for it (`docs/agentic-development.md`
-      section 10).
+   6. Else run `scripts/merge-gate.py <n>`. Gate 1 is the local run: CI does
+      not run on a PR into `alpha`. The script merges the PR head onto
+      `origin/alpha` in a temporary worktree and runs the checks. It takes a
+      few minutes. If gate 1 fails, start a fix round with the failing
+      command and its last output line. Screenshots are not in gate 1; the
+      implementer's `baseline:check` result stands in for them
+      (`docs/agentic-development.md` section 10).
 4. **Merge.** When the gate prints `merge-gate: PASS`, run
    `scripts/merge-gate.py <n> --merge`. It squash-merges into `alpha` with
    the full head SHA and deletes the `feature/*` branch. It refuses any other
-   base. If `alpha` moved since the PR's CI ran, merge the PR into `alpha` in
-   a temporary worktree first and run `npm ci`, `npm run lint`,
-   `npm run test:ci`, and `npm run build`. Then do every step in
+   base. Do not run the checks again: the gate just ran them on the PR head
+   merged onto the current `alpha`. If `alpha` moved after the gate, run the
+   gate again. Then do every step in
    `docs/agentic-development.md` section 8:
-   1. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
-      on each WP that the merge unblocked.
-   2. Check the merge on the `alpha` log, not on the PR list's `merged`
+   1. Check the merge on the `alpha` log, not on the PR list's `merged`
       field.
-   3. Post an `Orchestrator note` on each open WP whose assumptions the
+   2. Close the WP issue with `state_reason: completed`, and comment one
+      line with the merge commit. A merge into `alpha` does not run the
+      `Closes #N` keyword, because `alpha` is not the default branch. Remove
+      its `status:*` label.
+   3. If `merge-gate.py --merge` could not delete the `feature/*` branch (a
+      cloud session proxy returns HTTP 403), note the branch. Tell the
+      developer the list of branches to delete when the queue is empty.
+   4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
+      on each WP that the merge unblocked.
+   5. Post an `Orchestrator note` on each open WP whose assumptions the
       merge changed.
 5. **Needs human.** When only human approval is missing, tell the developer
    once with the PR link. Do not ask again for the same PR. Say what the
@@ -132,9 +149,10 @@ Repeat until no WP is open, or the developer says stop:
    dependency. An approval in chat counts: add `human-approved` and quote it
    in a plain PR comment with no review marker.
 6. **Baseline refresh commits.** A commit that the "Refresh screenshot
-   baselines" workflow pushed starts no CI run, so the gate reads "no check
-   runs". Tell the developer once (`docs/agentic-development.md` section
-   10, rule 5). Never push an empty commit to start CI.
+   baselines" workflow pushed starts no CI run. Gate 1 does not need one.
+   Tell the developer once to review the moved baselines
+   (`docs/agentic-development.md` section 10, rule 5). Never push an empty
+   commit to start CI.
 7. **Your own PRs.** Never merge a PR that you wrote (a docs PR, a CI fix).
    Do not review it yourself. Start a fresh L1 reviewer and a fresh L2
    reviewer on it, then give the developer the link.
@@ -150,7 +168,7 @@ The Screenshots job first runs on that promotion PR.
 The `pr-reviewer-l2` agent owns this checklist. Its definition is
 `.claude/agents/pr-reviewer-l2.md`, and it posts the comment. Change the
 checklist there, not here. `merge-gate.py` checks the mechanical items (base
-branch, CI, verdicts, approval, conflicts).
+branch, local checks, verdicts, approval, conflicts).
 
 The comment starts with `<!-- review:L2 verdict=approve|changes -->`, and
 names `**Reviewer model:** opus`. The merge gate reads only the marker.
@@ -196,8 +214,9 @@ orchestrates. The rules for the `model:haiku` label are in
 
 ## 7. CI out of minutes
 
-1. **Spot it.** No CI job ran a step, and some text names billing or a
-   spending limit. `merge-gate.py` reports "CI is out of minutes".
+1. **Spot it.** A check run on the head ran no step, and some text names
+   billing or a spending limit. `merge-gate.py` reports "CI is out of
+   minutes". This applies to a promotion. A PR into `alpha` runs no CI.
 2. **Note it once.** If no open issue has the label `ci:billing`, open
    `[ops] GitHub Actions minutes are used up` with that label, and tell the
    developer in one line. If the issue is open, say nothing more about it.
