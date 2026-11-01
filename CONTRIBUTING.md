@@ -1,6 +1,6 @@
 # Contributing
 
-This covers the branching model and CI. For running the project day to day —
+This covers the branching model, CI, and agentic development. For running the project day to day —
 quick start, scripts, project structure, content authoring — see
 [README.md](README.md). For the screenshot-testing workflow, see
 [docs/TESTING.md](docs/TESTING.md).
@@ -77,3 +77,24 @@ Four operational workflows sit alongside CI, all dispatchable from the
 
 GitHub only offers `workflow_dispatch` for workflows that exist on the default
 branch, so all four must stay on `main`.
+
+## Agentic development
+
+Claude agents can work the issue tracker under two skills in `.claude/skills/`:
+
+| Skill | What it does |
+| ----- | ------------ |
+| `/scrum` | Ranks the backlog with the developer and turns the next issues into work packages (`[WP-NN]` issues with owned files and acceptance criteria) |
+| `/orchestrate` | Runs the ready work packages in parallel, has each PR reviewed twice by fresh agents, and merges the ones that pass into `alpha` |
+
+The orchestrator never merges past `alpha`: promotion to `beta` and `main`
+stays a person's job. Changes the client will see wait for the developer's
+approval. The rules are in [docs/agentic-development.md](docs/agentic-development.md); the agents are in
+`.claude/agents/`; the two helper scripts need Python 3 and an authenticated
+`gh`:
+
+```bash
+scripts/scrum.py snapshot        # backlog digest and the orchestrator's queue
+scripts/merge-gate.py <pr>       # the merge gates for one PR
+python3 -B scripts/test_scrum.py && python3 -B scripts/test_merge_gate.py
+```

@@ -8,10 +8,13 @@ Answer in Simplified Technical English (STE): short declarative sentences, one i
 - `_nav/` — Top-level page content (Markdown), edited via `/admin`.
 - `_posts/`, `_recipes/` — Blog posts and recipes (Markdown), edited via `/admin`. Empty in git except `.gitkeep`.
 - `public/` — Static assets. `public/admin/` is the CMS.
-- `scripts/` — Build-time generators (nav, sitemap) and test tooling (static server, container runner, font cache).
+- `scripts/` — Build-time generators (nav, sitemap), test tooling (static server, container runner, font cache), and the agent helpers `scrum.py` and `merge-gate.py` (Python 3, `gh`).
 - `styles/` — Global CSS and CSS modules.
 - `tests/visual/` — Playwright screenshot tests and baselines.
 - `.github/workflows/` — CI and scheduled jobs.
 - `docs/TESTING.md` — Screenshot-testing workflow.
+- `docs/agentic-development.md` — Rules for agent work: WP issues, labels, reviews, merge gate.
+- `.claude/skills/` — `/scrum` (groom the backlog into WPs) and `/orchestrate` (run WPs, review, merge into `alpha`).
+- `.claude/agents/` — `implementer`, `pr-reviewer` (layer 1), `pr-reviewer-l2` (layer 2).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branching model and CI pipeline.
