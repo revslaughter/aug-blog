@@ -18,11 +18,14 @@
       Deliberately no `type="module"` and no stylesheet: the bundle is a
       classic script and ships its own styles. Adding either breaks it.
 
-      The URL is unpinned, so the editor tracks upstream. If a release ever
-      breaks the editor, pin it by version — for example
-      https://unpkg.com/@sveltia/cms@1.2.3/dist/sveltia-cms.js — and note why
-      here, so the pin does not outlive its reason.
+      The version is pinned on purpose, with a Subresource Integrity hash.
+      This page holds a GitHub write credential, so it runs only a reviewed
+      release. To upgrade, follow "Updating the editor" in README.md.
     -->
-    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+    <script
+      src="https://unpkg.com/@sveltia/cms@0.256.1/dist/sveltia-cms.js"
+      integrity="sha384-LPT86oZkLhmoF84O1jKZBSaFJOVvKv8sjXDKap1SOaSwzbC8F6HH7rTJWekmAzG9"
+      crossorigin="anonymous"
+    ></script>
   </body>
 </html>

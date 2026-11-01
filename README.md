@@ -317,6 +317,21 @@ instead, without blocking the writing. If you do want review in the editor, add
 `publish_mode: editorial_workflow` to the `backend` block in `config.yml`; the
 CMS then opens a pull request per entry and somebody has to merge each one.
 
+### Updating the editor
+
+The script tag in `public/admin/index.html` names one exact Sveltia version and
+its SHA-384 hash. The page holds a GitHub write credential, so an upgrade is a
+reviewed commit. Do not remove the pin.
+
+1. Find the latest version:
+   `npm view @sveltia/cms version`.
+2. Hash the exact versioned URL (not the unversioned redirect):
+   `curl -sL https://unpkg.com/@sveltia/cms@X.Y.Z/dist/sveltia-cms.js | openssl dgst -sha384 -binary | openssl base64 -A`
+3. In `public/admin/index.html`, set the version in `src` and the hash in
+   `integrity="sha384-..."`. Keep `crossorigin="anonymous"`.
+4. Open a PR. After it reaches `beta`, sign in at `/admin` on the `beta`
+   deploy and check that the editor loads before you promote it.
+
 ### Before handing `/admin` to the client
 
 The repo side is done. What is left is account setup that cannot be done from a
