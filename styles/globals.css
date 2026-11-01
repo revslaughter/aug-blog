@@ -20,10 +20,13 @@
   --color-surface-alt: #eef1de;
   --color-text: #46352a;
   --color-accent-green: #4c6a30;
-  --color-accent-green-soft: #6f8f4a;
-  --color-accent-gold: #a8621b;
+  --color-accent-green-soft: #57703a;
+  --color-accent-gold: #8f5115;
   --color-accent-grape: #6d3c82;
   --color-border: #cdd8ab;
+  --color-nav-bg: #c1cf9c;
+  --color-nav-text: #46352a;
+  --color-nav-active: #3f5827;
 }
 
 html,
@@ -122,8 +125,8 @@ article > header {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  background-color: #c1cf9c;
-  color: #221008;
+  background-color: var(--color-nav-bg);
+  color: var(--color-nav-text);
   width: 100%;
 }
 
@@ -132,7 +135,13 @@ article > header {
 }
 
 .headerNavLink a {
+  color: var(--color-nav-text);
   text-decoration: none;
+}
+
+.headerNavLink a[aria-current="page"] {
+  color: var(--color-nav-active);
+  text-decoration: underline;
 }
 
 .headerNavLink a:hover,
