@@ -3,18 +3,10 @@ title: Mindful Movement Series
 nav_label: Mindful Movement
 in_nav: false
 order: 50
-description: Mindful movement series
-intro: ''
-schedule:
-  - label: Summer
-    value: Saturdays @ 8am, starting in June
+description: Antioch Urban Growers' Mindful Movement Series — Saturday mornings in Kansas City.
+intro: New this year — start your Saturday with mindful movement in the garden.
+schedule: []
 store_link: false
 contact_details: false
-note: ''
+note: How long the series runs this year is still being finalized — check back soon.
 ---
-
-An hour outdoors before the day starts...
-
-## What a session is like
-
-Gentle, slow and led at a pace anyone can hold.

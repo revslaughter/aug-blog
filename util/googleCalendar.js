@@ -14,7 +14,7 @@ import { Temporal } from "@js-temporal/polyfill";
  * no server runtime, so this runs inside `getStaticProps` — the result is
  * baked into the page at build/deploy time, not fetched by the browser.
  * Refreshing events therefore means re-deploying (see
- * .github/workflows/weekly-refresh.yml for a scheduled rebuild).
+ * .github/workflows/daily-refresh.yml for a scheduled rebuild).
  *
  * Configure via the GOOGLE_CALENDAR_ICS_URL env var (Netlify site settings):
  * the calendar's "Secret address in iCal format" from Google Calendar
