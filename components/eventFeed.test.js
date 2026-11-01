@@ -1,6 +1,29 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import EventFeed from "./eventFeed";
+
+// util/googleCalendar.js owns the order: an all-day event sorts by its
+// calendar date, which `start` cannot carry (#70). A second sort here, keyed
+// on `start`, would undo it. So the feed must print events as given.
+describe("EventFeed ordering", () => {
+  it("renders events in the order it gets them, without sorting", () => {
+    render(
+      <EventFeed
+        events={[
+          event({ id: "late", title: "Late", start: "2026-06-30T18:00:00.000Z" }),
+          event({ id: "early", title: "Early", start: "2026-05-01T18:00:00.000Z" }),
+          event({ id: "middle", title: "Middle", start: "2026-06-01T18:00:00.000Z" }),
+        ]}
+      />
+    );
+    const buttons = screen.getAllByRole("button", { name: /View details for/ });
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "View details for Late",
+      "View details for Early",
+      "View details for Middle",
+    ]);
+  });
+});
 import { getUpcomingEvents, icsFileSource } from "../util/googleCalendar";
 
 /**
