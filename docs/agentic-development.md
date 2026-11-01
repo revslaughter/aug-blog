@@ -188,8 +188,9 @@ commit, or closes and reopens a PR.
 2. Close the WP issue by hand. GitHub runs a closing keyword only on a merge
    into the default branch (`main`), so a merge into `alpha` leaves the issue
    open, and the WPs that it blocks stay blocked.
-3. Delete the `feature/*` branch. If the script cannot (a cloud session
-   proxy refuses the delete), the developer deletes it.
+3. `merge-gate.py --merge` deletes the `feature/*` branch (section 4). If
+   it cannot (a cloud session proxy refuses the delete), the developer
+   deletes it.
 4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready` on each
    WP that the merge unblocked.
 5. If the merge changed what an open WP assumes (a function name, a file, a
