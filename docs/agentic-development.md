@@ -101,9 +101,9 @@ carries risk past the code:
    squash-merges it with `scripts/merge-gate.py --merge`. The script deletes
    the `feature/*` branch.
 7. Squash belongs to PRs into `alpha` alone. A promotion (`alpha` → `beta` →
-   `main`), `publish` → `main`, and a back-merge PR keep their commits: a merge
-   commit, or a rebase (`CONTRIBUTING.md`, "Merge methods"). The developer
-   merges those. The orchestrator never does.
+   `main`), `publish` → `main`, and a back-merge PR keep their commits: a
+   merge commit, never a squash or a rebase (`CONTRIBUTING.md`, "Merge
+   methods"). The developer merges those. The orchestrator never does.
 
 ## 5. Reviews
 

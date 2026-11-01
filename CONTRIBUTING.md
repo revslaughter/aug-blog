@@ -44,16 +44,16 @@ at a glance what is actually in flight.
 | Pull request | Method |
 | ------------ | ------ |
 | `feature/*` or `claude/*` → `alpha` | **Squash** |
-| `alpha` → `beta`, `beta` → `main` | **Merge commit** (or rebase) |
-| `publish` → `main` | **Merge commit** (or rebase) |
+| `alpha` → `beta`, `beta` → `main` | **Merge commit** |
+| `publish` → `main` | **Merge commit** |
 | Back-merge PRs (`sync/main-to-*`) | **Merge commit** |
 
 Squash belongs to `alpha` alone. Every other merge keeps the commits.
 
-Prefer a merge commit for the promotions. A rebase merge on GitHub rewrites
-each commit with a new SHA, the same as a squash does. The branches then share
-no ancestry for those commits, and `back-merge.yml` meets conflicts. The
-comment at the top of that workflow gives the details.
+Never squash or rebase outside `alpha`. Both rewrite each commit with a new
+SHA. The branches then share no ancestry for those commits, and
+`back-merge.yml` meets conflicts. The comment at the top of that workflow
+gives the details.
 
 ## CI
 
