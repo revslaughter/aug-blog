@@ -347,6 +347,6 @@ Site-wide SEO is centralized:
 
 ## Contributing
 
-For the git branching model, deployment tracks and CI pipeline, see
-[CONTRIBUTING.md](CONTRIBUTING.md). For the screenshot-testing workflow, see
+For the git branching model, deployment tracks, CI pipeline and the
+`/scrum` and `/orchestrate` agent skills, see [CONTRIBUTING.md](CONTRIBUTING.md). For the screenshot-testing workflow, see
 [docs/TESTING.md](docs/TESTING.md).
