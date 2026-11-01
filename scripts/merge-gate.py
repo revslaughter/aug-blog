@@ -10,8 +10,14 @@ one line for each gate:
        merge into `alpha` only. The promotions alpha -> beta -> main, and
        `publish` -> main, are the developer's, and they are merged, never
        squashed (CONTRIBUTING.md, "Branching and deployment").
-    1. CI is green, or the PR is docs-only. The Security Audit job is
-       non-blocking (CONTRIBUTING.md, "CI"), so the gate ignores it.
+    1. The checks pass, or the PR is docs-only. CI does not run on a PR into
+       `alpha` (CONTRIBUTING.md, "CI"), so the gate runs the checks itself:
+       it merges the PR head onto the current `origin/alpha` in a temporary
+       worktree and runs `npm ci`, `npm run lint`, `npm run test:ci` at
+       TZ=Asia/Tokyo and at TZ=America/Chicago, and `npm run build`. It
+       prints the command that failed, and it always removes the worktree.
+       A merge conflict fails the gate. A red check run on the head (not the
+       Security Audit job, which is non-blocking) also fails the gate.
     2. The latest L1 verdict reads approve, and no push came after it (an
        orchestrator merge commit that resolves only package.json and
        package-lock.json keeps it, section 5.3).
@@ -25,17 +31,20 @@ It also fails when a review marker was escaped (`&lt;!--` in place of
 
 The exit code is 0 when every gate passes and 1 when one fails. With
 --merge, a pass is followed by a squash merge that pins the full head SHA,
-and the head branch is deleted.
+and the head branch is deleted. --merge uses the result of this run. It does
+not run the checks again.
 
-Needs python3, git, and an authenticated `gh`. SCRUM_REPO sets the
+Needs python3, git, npm, and an authenticated `gh`. SCRUM_REPO sets the
 repository, as for scripts/scrum.py.
 """
 import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 
@@ -116,6 +125,70 @@ def gate_ci(files, ci):
     return False, detail
 
 
+# The local checks of gate 1: (label, argv, TZ or None).
+CHECKS = (
+    ("npm ci", ["npm", "ci"], None),
+    ("npm run lint", ["npm", "run", "lint"], None),
+    ("TZ=Asia/Tokyo npm run test:ci", ["npm", "run", "test:ci"], "Asia/Tokyo"),
+    ("TZ=America/Chicago npm run test:ci", ["npm", "run", "test:ci"], "America/Chicago"),
+    ("npm run build", ["npm", "run", "build"], None),
+)
+
+
+def sh(argv, cwd=None, env=None):
+    """Run a command. Return (exit code, output). Tests replace this."""
+    r = subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True)
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+def last_line(text):
+    lines = [l for l in text.strip().splitlines() if l.strip()]
+    return lines[-1].strip()[:200] if lines else "no output"
+
+
+def gate_local(head, pr_number, run=sh):
+    """Gate 1 for a PR into alpha: merge the head onto current origin/alpha
+    in a temporary worktree and run the checks there. Returns (ok, reason).
+    `run` takes (argv, cwd, env) and returns (exit code, output)."""
+    code, out = run(["git", "fetch", "-q", "origin", "alpha", f"pull/{pr_number}/head"], None, None)
+    if code:
+        return False, "git fetch failed: " + last_line(out)
+    tmp = tempfile.mkdtemp(prefix="merge-gate-")
+    wt = os.path.join(tmp, "wt")
+    try:
+        code, out = run(["git", "worktree", "add", "--detach", wt, "origin/alpha"], None, None)
+        if code:
+            return False, "git worktree add failed: " + last_line(out)
+        ident = ["-c", "user.name=merge-gate", "-c", "user.email=merge-gate@localhost"]
+        code, out = run(["git", *ident, "merge", "--no-edit", "--no-ff", head], wt, None)
+        if code:
+            run(["git", "merge", "--abort"], wt, None)
+            return False, f"merge conflict: {head[:7]} does not merge onto origin/alpha"
+        for label, argv, tz in CHECKS:
+            env = dict(os.environ, TZ=tz) if tz else None
+            code, out = run(argv, wt, env)
+            if code:
+                return False, f"`{label}` failed (exit {code}): {last_line(out)}"
+        return True, "merged onto origin/alpha; " + ", ".join(c[0] for c in CHECKS) + " passed"
+    finally:
+        run(["git", "worktree", "remove", "--force", wt], None, None)
+        shutil.rmtree(tmp, ignore_errors=True)
+        run(["git", "worktree", "prune"], None, None)
+
+
+def gate_checks(files, ci, base, state, head, pr_number, run=sh):
+    """Gate 1. A docs-only PR passes. A red check run on the head fails. A
+    PR into alpha runs the checks locally. Any other PR (gate 0 fails it)
+    reads CI as before."""
+    if is_docs_only(files):
+        return True, "docs-only PR, no checks needed (section 7)"
+    if ci[0] in ("red", "out-of-minutes"):
+        return gate_ci(files, ci)
+    if base != BASE or state != "open":
+        return gate_ci(files, ci)
+    return gate_local(head, pr_number, run)
+
+
 def gate_verdict(layer, latest, pushed_at, kept=False):
     c = latest.get(layer)
     if c is None:
@@ -150,11 +223,13 @@ def gate_conflict(mergeable, state):
 
 
 def evaluate(pr, files, comments, ci, labels, approved, pushed_at,
-             l1_kept=False):
+             l1_kept=False, run=sh):
     """The gate results as a list of (name, ok, reason)."""
     latest, escaped = verdicts(comments)
     out = [
-        ("1 CI", *gate_ci(files, ci)),
+        ("1 checks", *gate_checks(files, ci, pr.get("base", {}).get("ref", BASE),
+                                  pr.get("state", "open"), pr["head"]["sha"],
+                                  pr.get("number", 0), run)),
         ("2 L1", *gate_verdict("L1", latest, pushed_at, l1_kept)),
         ("3 L2", *gate_verdict("L2", latest, pushed_at)),
         ("4 human", *gate_human(labels, approved)),

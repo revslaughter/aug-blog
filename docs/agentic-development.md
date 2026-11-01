@@ -87,8 +87,8 @@ carries risk past the code:
 ## 4. Branches and PRs
 
 1. The implementer branches from `origin/alpha`. The branch name is
-   `feature/wp-NN-short-slug`. CI runs on `feature/**` pushes and on PRs into
-   `alpha`.
+   `feature/wp-NN-short-slug`. CI does not run on `feature/**` pushes or on
+   PRs into `alpha`. Gate 1 of the merge gate runs the checks (section 7).
 2. The implementer opens a **draft** PR into `alpha`. The title is
    `[WP-NN] <issue title>`.
 3. The first line of the body is `Closes #<WP issue>`. No other closing
@@ -163,20 +163,29 @@ fails on it.
 `scripts/merge-gate.py <n>` checks the gates on the PR head:
 
 0. The PR is open, ready (not a draft), and targets `alpha`.
-1. CI is green. The Security Audit job does not count (CONTRIBUTING.md, "CI").
-   The Screenshots job skips on PRs into `alpha` (section 10). A PR
-   that changes only Markdown outside `_nav/`, `_posts/`, `_recipes/`, and
-   `public/` needs no CI.
+1. The local checks pass. CI runs at promotion only (CONTRIBUTING.md, "CI"),
+   so gate 1 is the local run. The script merges the PR head onto the current
+   `origin/alpha` in a temporary worktree. It runs `npm ci`, `npm run lint`,
+   `npm run test:ci` at `TZ=Asia/Tokyo` and at `TZ=America/Chicago`, and
+   `npm run build`. It prints the command that failed. It removes the
+   worktree. A merge conflict fails the gate. A red check run on the head
+   fails the gate; the Security Audit job does not count. A PR that changes
+   only Markdown outside `_nav/`, `_posts/`, `_recipes/`, and `public/` needs
+   no checks. Screenshots are not part of gate 1 (section 10).
 2. The latest L1 verdict approves, and it is not stale.
 3. The latest L2 verdict approves, and it is not stale.
 4. A `needs-human` PR or issue has the developer's approval: an approving
    GitHub review on the head, or the label `human-approved`.
 5. GitHub reports no merge conflict.
 
-When CI runs out of Actions minutes, the gate fails. The orchestrator opens one
+When a check run on the head shows that CI ran out of Actions minutes, the
+gate fails. The orchestrator opens one
 `[ops] GitHub Actions minutes are used up` issue with the label `ci:billing`,
 tells the developer once, and waits. It never re-runs CI, pushes an empty
 commit, or closes and reopens a PR.
+
+A red CI at a promotion into `beta` or `main` gets a fix branch into `alpha`.
+It is a normal WP. The promotion waits for the fix.
 
 ## 8. After a merge
 
@@ -212,7 +221,7 @@ The screenshot job compares every page at four viewports against committed
 baselines (`docs/TESTING.md`).
 
 1. CI runs the Screenshots job only on PRs into `beta` and `main`. A WP PR
-   into `alpha` does not run it. The implementer runs `npm run baseline:check`
+   into `alpha` runs no CI, and gate 1 does not run screenshots. The implementer runs `npm run baseline:check`
    when Docker runs, and reports the result under **Checks run**. Without
    Docker, it writes "Screenshots: not run" and the developer meets any
    regression at the promotion.
@@ -224,9 +233,8 @@ baselines (`docs/TESTING.md`).
    when Docker runs, or else dispatch the **Refresh screenshot baselines**
    workflow on the PR branch with a reason.
 5. A commit pushed by that workflow starts no CI run (it pushes with
-   `GITHUB_TOKEN`). The merge gate then reads "no check runs" on that head.
-   The orchestrator tells the developer, who reviews the moved baselines and
-   pushes the next real commit or merges by hand.
+   `GITHUB_TOKEN`). Gate 1 does not read CI, so it is not affected. The
+   developer still reviews the moved baselines before the merge.
 6. The PR body lists each moved baseline and why it moved.
 
 ## 11. Parallel work and conflicts
