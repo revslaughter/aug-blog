@@ -19,6 +19,7 @@
 // package.json.
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { playwrightImage } from "../util/playwrightImage.mjs";
 
@@ -49,6 +50,47 @@ function requireDocker() {
   );
   process.exit(1);
 }
+
+// A Claude Code cloud session reaches the network through a proxy on
+// 127.0.0.1 whose CA the Playwright container does not trust, so `npm ci`
+// inside it fails with SELF_SIGNED_CERT_IN_CHAIN. When the session proxy and
+// its CA bundle are both present, share the host network (so 127.0.0.1 is the
+// proxy), mount the bundle read-only, and point Node and npm at it. On any
+// other machine this returns no arguments and no environment, and the
+// `docker run` command is unchanged.
+//
+// Variables go in by name (`-e NAME`), so a proxy URL that may hold a
+// credential never appears in the printed command.
+const CA_BUNDLE = "/root/.ccr/ca-bundle.crt";
+const CA_BUNDLE_IN_CONTAINER = "/etc/ssl/certs/session-proxy-ca.crt";
+
+function cloudProxyConfig(env = process.env, caExists = existsSync) {
+  if (!env.HTTPS_PROXY || !caExists(CA_BUNDLE)) return { args: [], env: {} };
+
+  // Playwright reaches the static test server on localhost. Keep those
+  // requests off the proxy.
+  const noProxy = [env.NO_PROXY, "localhost", "127.0.0.1"]
+    .filter(Boolean)
+    .join(",");
+  // Docker leaves out a `-e NAME` whose variable is unset on the host.
+  const names = ["HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"];
+  return {
+    args: [
+      "--network",
+      "host",
+      "-v",
+      `${CA_BUNDLE}:${CA_BUNDLE_IN_CONTAINER}:ro`,
+      ...names.flatMap((name) => ["-e", name]),
+      "-e",
+      `NODE_EXTRA_CA_CERTS=${CA_BUNDLE_IN_CONTAINER}`,
+      "-e",
+      `npm_config_cafile=${CA_BUNDLE_IN_CONTAINER}`,
+    ],
+    env: { NO_PROXY: noProxy },
+  };
+}
+
+const cloud = cloudProxyConfig();
 
 // `update` regenerates baselines; anything else just compares.
 const mode = process.argv[2] === "update" ? "update" : "check";
@@ -84,6 +126,7 @@ const args = [
   // Chromium needs more shared memory than Docker's 64MB default or it crashes
   // partway through a run. This is Playwright's documented fix.
   "--ipc=host",
+  ...cloud.args,
   "-v",
   `${process.cwd()}:/work`,
   // An anonymous volume over node_modules, so the Linux install inside the
@@ -126,5 +169,8 @@ console.log(
       : "")
 );
 
-const run = spawnSync("docker", args, { stdio: "inherit" });
+const run = spawnSync("docker", args, {
+  stdio: "inherit",
+  env: { ...process.env, ...cloud.env },
+});
 process.exit(run.status ?? 1);
