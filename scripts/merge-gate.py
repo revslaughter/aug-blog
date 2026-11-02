@@ -30,9 +30,9 @@ It also fails when a review marker was escaped (`&lt;!--` in place of
 `<!--`). An escaped marker is not a verdict.
 
 The exit code is 0 when every gate passes and 1 when one fails. With
---merge, a pass is followed by a squash merge that pins the full head SHA,
-and the head branch is deleted. --merge uses the result of this run. It does
-not run the checks again.
+--merge, a pass is followed by a squash merge that pins the full head SHA.
+The script never deletes a branch on GitHub: the developer does that.
+--merge uses the result of this run. It does not run the checks again.
 
 Needs python3, git, npm, and an authenticated `gh`. SCRUM_REPO sets the
 repository, as for scripts/scrum.py.
@@ -46,7 +46,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import scrum  # noqa: E402
@@ -150,9 +149,19 @@ def gate_local(head, pr_number, run=sh):
     """Gate 1 for a PR into alpha: merge the head onto current origin/alpha
     in a temporary worktree and run the checks there. Returns (ok, reason).
     `run` takes (argv, cwd, env) and returns (exit code, output)."""
-    code, out = run(["git", "fetch", "-q", "origin", "alpha", f"pull/{pr_number}/head"], None, None)
+    code, out = run(["git", "fetch", "-q", "origin", "alpha"], None, None)
     if code:
         return False, "git fetch failed: " + last_line(out)
+    # Fetch the PR head, then compare it with the SHA that the gate read.
+    # (Fetching by SHA needs server support; this does not.)
+    code, out = run(["git", "fetch", "-q", "origin", f"pull/{pr_number}/head"], None, None)
+    if code:
+        return False, "git fetch failed: " + last_line(out)
+    code, out = run(["git", "rev-parse", "FETCH_HEAD"], None, None)
+    fetched = out.strip()
+    if code or fetched != head:
+        return False, (f"the PR head moved during the run: read {head[:7]}, "
+                       f"fetched {fetched[:7] or '?'}; run the gate again")
     tmp = tempfile.mkdtemp(prefix="merge-gate-")
     wt = os.path.join(tmp, "wt")
     try:
@@ -342,11 +351,7 @@ def merge(pr):
         "commit_title": f"{pr['title']} (#{n})",
     })
     print(f"merged #{n}: {res.get('sha', '?')}")
-    # CONTRIBUTING.md, "Branching and deployment": merged feature branches are deleted.
-    head = pr["head"]["ref"]
-    if pr["head"]["repo"]["full_name"] == scrum.REPO and head.startswith("feature/"):
-        scrum.api(f"git/refs/heads/{urllib.parse.quote(head)}", "DELETE")
-        print(f"deleted branch {head}")
+    # No branch delete: the developer deletes branches on GitHub.
 
 
 def main():

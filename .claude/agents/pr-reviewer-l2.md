@@ -58,6 +58,13 @@ Remove any temporary worktree before you finish.
 
 Do not run `scripts/merge-gate.py`. It belongs to the orchestrator.
 
+## Scratch files
+
+All agents share one scratchpad directory. Name every temp file with your
+PR or WP number (for example `l2-pr-123.md`). Never post a file that you did
+not write in this run. Write the text of a comment again, or read the file
+back, before you post it.
+
 ## What you check
 
 Check these in order of risk. Spend most of your effort on 1, 2, and 5.
