@@ -60,6 +60,13 @@ Your prompt gives a WP ID and an issue number, for example
     with one attribution footer, not two.
 11. Return the PR number and a two-line summary. Say that the PR is a draft.
 
+## Scratch files
+
+All agents share one scratchpad directory. Name every temp file with your
+PR or WP number (for example `l2-pr-123.md`). Never post a file that you did
+not write in this run. Write the text of a comment again, or read the file
+back, before you post it.
+
 ## Rules
 
 1. Do not change a file that is not in the Owned files list. If you must,

@@ -28,6 +28,15 @@ made. The orchestrator never reviews its own PRs.
 The orchestrator merges into `alpha` only. Everything past `alpha` belongs to
 the developer (CONTRIBUTING.md, "Branching and deployment").
 
+During a run, the orchestrator does every merge into `alpha`. The developer
+approves a `needs-human` PR in chat or with the `human-approved` label. The
+orchestrator then merges it through the gate. A Netlify test of one PR uses
+its deploy preview, not a merge into `alpha`.
+
+Agents and scripts delete local branches only (worktree branches and local
+`feature/*` branches). They never delete a branch on GitHub. The developer
+deletes GitHub branches.
+
 ## 2. Work package issues
 
 ### 2.1 Format
@@ -102,8 +111,8 @@ carries risk past the code:
    labels of the PR and of the issue that it closes, so the label on the PR
    is for people and reviewers, not for the gate.
 7. The orchestrator marks the PR ready after both reviews approve, and
-   squash-merges it with `scripts/merge-gate.py --merge`. The script deletes
-   the `feature/*` branch.
+   squash-merges it with `scripts/merge-gate.py --merge`. The script does not
+   delete the `feature/*` branch on GitHub. The developer does that.
 8. Squash belongs to PRs into `alpha` alone. A promotion (`alpha` → `beta` →
    `main`), `publish` → `main`, and a back-merge PR keep their commits: a
    merge commit, never a squash or a rebase (`CONTRIBUTING.md`, "Merge
@@ -161,6 +170,10 @@ fails on it.
 3. A new L1 review and then a new L2 review follow each push.
 4. A WP gets at most 3 fix rounds. After the third, the orchestrator
    escalates.
+5. When a developer decision changes an acceptance criterion, the
+   orchestrator edits the issue text before it starts the fix round. It
+   edits the criterion, and any line in **Out of scope** that conflicts with
+   it. A comment alone does not count: the reviewers read the issue text.
 
 ## 7. Merge gate
 
@@ -197,9 +210,8 @@ It is a normal WP. The promotion waits for the fix.
 2. Close the WP issue by hand. GitHub runs a closing keyword only on a merge
    into the default branch (`main`), so a merge into `alpha` leaves the issue
    open, and the WPs that it blocks stay blocked.
-3. `merge-gate.py --merge` deletes the `feature/*` branch (section 4). If
-   it cannot (a cloud session proxy refuses the delete), the developer
-   deletes it.
+3. Do not delete the `feature/*` branch on GitHub. The developer does that.
+   An agent may delete a local branch or worktree that it made.
 4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready` on each
    WP that the merge unblocked.
 5. If the merge changed what an open WP assumes (a function name, a file, a
@@ -231,10 +243,10 @@ The screenshot job compares every page at four viewports against committed
 baselines (`docs/TESTING.md`).
 
 1. CI runs the Screenshots job only on PRs into `beta` and `main`. A WP PR
-   into `alpha` runs no CI, and gate 1 does not run screenshots. The implementer runs `npm run baseline:check`
-   when Docker runs, and reports the result under **Checks run**. Without
-   Docker, it writes "Screenshots: not run" and the developer meets any
-   regression at the promotion.
+   into `alpha` runs no CI, and gate 1 does not run screenshots. The
+   implementer runs `npm run baseline:check` when Docker runs, and reports
+   the result under **Checks run**. Without Docker, it writes "Screenshots:
+   not run" and the developer meets any regression at the promotion.
    In a cloud session the Docker client is installed but the daemon does
    not run. The orchestrator starts `dockerd` before it starts agents, so
    "not run" there means the start failed.
@@ -245,9 +257,13 @@ baselines (`docs/TESTING.md`).
 4. Never regenerate baselines on the host. Use `npm run baseline` (Docker)
    when Docker runs, or else dispatch the **Refresh screenshot baselines**
    workflow on the PR branch with a reason.
-5. A commit pushed by that workflow starts no CI run (it pushes with
-   `GITHUB_TOKEN`). Gate 1 does not read CI, so it is not affected. The
-   developer still reviews the moved baselines before the merge.
+5. A commit pushed by that workflow has the actor `github-actions[bot]`.
+   - On a WP PR into `alpha`, CI does not run. Gate 1 runs locally, so the
+     refresh commit needs no CI run. The gate reads it like any other head.
+   - On a promotion PR, a CI run whose actor is `github-actions[bot]` can
+     wait for the developer's approval ("Approve and run workflows"). The
+     orchestrator tells the developer once. It never re-runs or kicks CI.
+   - The developer still reviews the moved baselines before the merge.
 6. The PR body lists each moved baseline and why it moved.
 
 ## 11. Parallel work and conflicts

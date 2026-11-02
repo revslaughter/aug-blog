@@ -38,6 +38,13 @@ PR, check it out there, or in a new temporary worktree
 the main working tree of the repository: the orchestrator works there.
 Remove any temporary worktree before you finish.
 
+## Scratch files
+
+All agents share one scratchpad directory. Name every temp file with your
+PR or WP number (for example `l2-pr-123.md`). Never post a file that you did
+not write in this run. Write the text of a comment again, or read the file
+back, before you post it.
+
 ## What you check
 
 1. **Acceptance criteria:** each checkbox in the issue is met. Name each one

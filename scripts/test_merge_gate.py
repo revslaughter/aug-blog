@@ -37,6 +37,7 @@ class Fake:
 
     def __init__(self, fail=None):
         self.fail = fail or {}
+        self.fetched = HEAD
         self.calls = []
 
     def __call__(self, argv, cwd=None, env=None):
@@ -44,6 +45,8 @@ class Fake:
         if env and env.get("TZ"):
             text = "TZ=" + env["TZ"] + " " + text
         self.calls.append(text)
+        if argv[:2] == ["git", "rev-parse"]:
+            return 0, self.fetched + "\n"
         for key, code in self.fail.items():
             if key in text:
                 return code, "boom line 1\nthe last line"
@@ -147,6 +150,22 @@ class Gates(unittest.TestCase):
         self.assertEqual(fake.count("npm run build"), 0)
         self.assertEqual(fake.count("worktree remove"), 1)
 
+    def test_moved_head_fails_before_any_worktree(self):
+        fake = Fake()
+        fake.fetched = "b" * 40
+        ok, why = mg.gate_local(HEAD, 7, fake)
+        self.assertFalse(ok)
+        self.assertIn("moved", why)
+        self.assertIn("bbbbbbb", why)
+        self.assertEqual(fake.count("worktree add"), 0)
+        self.assertEqual(fake.count("npm"), 0)
+
+    def test_merges_the_sha_that_it_read(self):
+        fake = Fake()
+        self.assertTrue(mg.gate_local(HEAD, 7, fake)[0])
+        self.assertEqual(fake.count("fetch -q origin pull/7/head"), 1)
+        self.assertEqual(fake.count("merge --no-edit --no-ff " + HEAD), 1)
+
     def test_merge_conflict_fails_and_cleans_up(self):
         fake = Fake(fail={"merge --no-edit": 1})
         ok, why = gates(run=fake)["1 checks"]
@@ -226,6 +245,25 @@ class Gates(unittest.TestCase):
     def test_escaped_marker_fails(self):
         bad = comment("&lt;!-- review:L1 verdict=approve --&gt;", url="x")
         self.assertFalse(gates(comments=[L1_OK, L2_OK, bad])["markers"][0])
+
+
+class Merge(unittest.TestCase):
+    def test_merge_makes_no_delete_call(self):
+        calls = []
+
+        def api(path, method="GET", body=None):
+            calls.append((method, path))
+            return {"sha": "c" * 40}
+        real = mg.scrum.api
+        mg.scrum.api = api
+        try:
+            mg.merge({"number": 7, "title": "[WP-1] x", "base": {"ref": "alpha"},
+                      "head": {"sha": HEAD, "ref": "feature/wp-01-x",
+                               "repo": {"full_name": mg.scrum.REPO}}})
+        finally:
+            mg.scrum.api = real
+        self.assertEqual([m for m, _ in calls], ["PUT"])
+        self.assertNotIn("DELETE", [m for m, _ in calls])
 
 
 class ClosedIssues(unittest.TestCase):

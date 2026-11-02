@@ -99,6 +99,8 @@ Repeat until no WP is open, or the developer says stop:
    3. If L1 says `changes`: start a fix round
       (`docs/agentic-development.md` section 6). For a `model:haiku` WP,
       section 6 of this runbook says which model runs the round.
+      If a developer decision changed an acceptance criterion, edit the issue
+      text first (step 3.4.3).
    4. If L2 says `changes`: do not start a fix round. Add `status:escalated`,
       comment on the issue with the link to the L2 comment (do not copy the
       findings), and tell the developer once (section 4 of this runbook).
@@ -109,6 +111,11 @@ Repeat until no WP is open, or the developer says stop:
       2. **Overrule:** the developer merges the PR, or edits the issue
          text, and tells you. Merge nothing yourself: gate 3 needs an L2
          `approve`.
+      3. **A changed criterion.** When a developer decision changes an
+         acceptance criterion, edit the issue text before you start the fix
+         round: the criterion, and any line in **Out of scope** that
+         conflicts with it. A comment alone does not count. The next
+         reviewer reads the issue text.
    5. Else, if the PR is a draft (L1 and L2 both approve): mark it ready.
       Use `mcp__github__update_pull_request` with `draft: false`. Cloud
       sessions block GraphQL, so `gh pr ready <n>` works only in a local
@@ -122,9 +129,10 @@ Repeat until no WP is open, or the developer says stop:
       command and its last output line. Screenshots are not in gate 1; the
       implementer's `baseline:check` result stands in for them
       (`docs/agentic-development.md` section 10).
-4. **Merge.** When the gate prints `merge-gate: PASS`, run
+4. **Merge.** During a run, you do every merge into `alpha`. The developer
+   never merges a WP PR for you. When the gate prints `merge-gate: PASS`, run
    `scripts/merge-gate.py <n> --merge`. It squash-merges into `alpha` with
-   the full head SHA and deletes the `feature/*` branch. It refuses any other
+   the full head SHA. It does not delete any branch. It refuses any other
    base. Do not run the checks again: the gate just ran them on the PR head
    merged onto the current `alpha`. If `alpha` moved after the gate, run the
    gate again. Then do every step in
@@ -135,24 +143,27 @@ Repeat until no WP is open, or the developer says stop:
       line with the merge commit. A merge into `alpha` does not run the
       `Closes #N` keyword, because `alpha` is not the default branch. Remove
       its `status:*` label.
-   3. If `merge-gate.py --merge` could not delete the `feature/*` branch (a
-      cloud session proxy returns HTTP 403), note the branch. Tell the
-      developer the list of branches to delete when the queue is empty.
-   4. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
+   3. Run `scripts/scrum.py snapshot --fix-status`. It sets `status:ready`
       on each WP that the merge unblocked.
-   5. Post an `Orchestrator note` on each open WP whose assumptions the
+   4. Post an `Orchestrator note` on each open WP whose assumptions the
       merge changed.
 5. **Needs human.** When only human approval is missing, tell the developer
    once with the PR link. Do not ask again for the same PR. Say what the
    developer must look at: the moved screenshot baselines (the CI artifact
    `visual-diff`, or the PR's file list), the CMS fields, or the new
    dependency. An approval in chat counts: add `human-approved` and quote it
-   in a plain PR comment with no review marker.
+   in a plain PR comment with no review marker. Then merge the PR through the
+   gate yourself (step 4). If the developer wants to test the PR on Netlify,
+   point them to its deploy preview. Do not merge into `alpha` for a test.
 6. **Baseline refresh commits.** A commit that the "Refresh screenshot
-   baselines" workflow pushed starts no CI run. Gate 1 does not need one.
-   Tell the developer once to review the moved baselines
-   (`docs/agentic-development.md` section 10, rule 5). Never push an empty
-   commit to start CI.
+   baselines" workflow pushed has the actor `github-actions[bot]`
+   (`docs/agentic-development.md` section 10, rule 5).
+   1. On a WP PR into `alpha`, CI does not run. Gate 1 runs locally, so the
+      commit needs no CI run. The gate reads it like any other head.
+   2. On a promotion PR, a CI run by `github-actions[bot]` can wait for the
+      developer's approval ("Approve and run workflows"). Tell the developer
+      once. Never re-run CI, and never push an empty commit to start it.
+   3. Tell the developer once to review the moved baselines.
 7. **Your own PRs.** Never merge a PR that you wrote (a docs PR, a CI fix).
    Do not review it yourself. Start a fresh L1 reviewer and a fresh L2
    reviewer on it, then give the developer the link.
