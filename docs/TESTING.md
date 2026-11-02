@@ -97,6 +97,26 @@ Run `npm run baseline:check` before pushing and confirm it is green, then check
 `git status`: only the pages you actually changed should appear. Anything else in
 that diff means the renderer disagreed and is worth stopping for.
 
+**In a Claude Code cloud session.** The session reaches the network through a
+proxy on `127.0.0.1`, and the container does not trust the proxy CA. Without
+help, `npm ci` inside the container fails with `SELF_SIGNED_CERT_IN_CHAIN`.
+The script detects this case: `HTTPS_PROXY` is set on the host and the file
+`/root/.ccr/ca-bundle.crt` exists. When both are true, it adds these to
+`docker run`:
+
+- `--network host`, so `127.0.0.1` in the container is the proxy.
+- A read-only mount of the CA bundle.
+- The variables `HTTPS_PROXY`, `HTTP_PROXY`, and `NO_PROXY`, passed by name so
+  that `VISUAL_CONTAINER_PRINT=1` does not print a proxy URL. `NO_PROXY` always
+  includes `localhost` and `127.0.0.1`, so Playwright reaches the test server
+  directly.
+- `NODE_EXTRA_CA_CERTS` and `npm_config_cafile`, which point at the mounted
+  bundle.
+
+When either condition is false (a developer machine), the `docker run` command
+does not change. In a cloud session the Docker daemon must run first: start
+`dockerd` if `docker info` fails.
+
 **In CI** — when Docker is not available: **Actions → Refresh screenshot
 baselines → Run workflow**, pick your branch, say why, and it pushes the updated
 PNGs to that branch.
